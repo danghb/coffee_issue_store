@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum IssueStatus {
+  PENDING
+  PROCESSING
+  NEED_INFO
+  RESOLVED
+  CLOSED
+}
+
+model DeviceModel {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  issues Issue[]
+}
+
+model Issue {
+  id        Int         @id @default(autoincrement())
+  title     String
+  description String
+  status    IssueStatus @default(PENDING)
+
+  modelId   Int
+  model     DeviceModel @relation(fields: [modelId], references: [id])
+
+  firmware  String?
+  reporterName String // 提出人姓名
+  contact   String? // 联系方式
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+  comments    Comment[]
+}
+
+enum AttachmentKind {
+  IMAGE
+  VIDEO
+  LOG
+  PCAP
+  BINARY
+  OTHER
+}
+
+model Attachment {
+  id        Int      @id @default(autoincrement())
+  filename  String   // 原始文件名
+  path      String   // 存储路径 (相对 UPLOAD_DIR 的路径)
+  mimeType  String
+  size      Int
+  sha256    String?
+  kind      AttachmentKind
+
+  // 孤儿文件清理策略：
+  // 定时任务检查：createdAt < 24h AND issueId IS NULL 的文件可删除
+  issueId   Int?
+  issue     Issue?   @relation(fields: [issueId], references: [id])
+  
+  createdAt DateTime @default(now())
+
+  @@index([sha256])
+}
+
+enum CommentType {
+  MESSAGE
+  STATUS_CHANGE
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  type       CommentType @default(MESSAGE)
+  content    String?
+  isInternal Boolean @default(false)
+
+  oldStatus  IssueStatus?
+  newStatus  IssueStatus?
+  
+  // 记录操作人（重要：需知道是谁修改了状态）
+  author     String   
+
+  createdAt  DateTime @default(now())
+
+  issueId    Int
+  issue      Issue @relation(fields: [issueId], references: [id])
+}
