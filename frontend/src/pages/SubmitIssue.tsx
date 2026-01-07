@@ -9,7 +9,7 @@ const SECTIONS = [
   { id: 'basic', title: '基本信息', icon: Info },
   { id: 'detail', title: '问题描述', icon: FileImage },
   { id: 'env', title: '环境信息', icon: Settings },
-  { id: 'custom', title: '调查问卷', icon: ClipboardList },
+  { id: 'custom', title: '附加信息', icon: ClipboardList },
   { id: 'troubleshoot', title: '初步排查', icon: Wrench },
 ];
 
@@ -228,36 +228,8 @@ export default function SubmitIssuePage() {
       </div>
 
       <div className="flex gap-8 items-start">
-        {/* Left Side: Navigation (Desktop) */}
-        <div className="hidden lg:block w-64 flex-shrink-0 sticky top-8">
-          <nav className="space-y-1" aria-label="Sidebar">
-            {SECTIONS.map((section) => {
-              const Icon = section.icon;
-              const isActive = activeSection === section.id;
-              // Only show Custom section if there are custom fields
-              if (section.id === 'custom' && customFields.length === 0) return null;
-
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => scrollToSection(section.id)}
-                  className={cn(
-                    "w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                    isActive
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                >
-                  <Icon className={cn(
-                    "flex-shrink-0 -ml-1 mr-3 h-5 w-5",
-                    isActive ? "text-blue-500" : "text-gray-400"
-                  )} />
-                  <span className="truncate">{section.title}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+        {/* Left Side: Navigation (Desktop) - Hidden as requested */}
+        {/* <div className="hidden lg:block w-64 flex-shrink-0 sticky top-8">...</div> */}
 
         {/* Right Side: Form */}
         <div className="flex-1 min-w-0">
@@ -287,16 +259,6 @@ export default function SubmitIssuePage() {
                 </h3>
               </div>
               <div className="p-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">提交日期</label>
-                  <input
-                    type="date"
-                    name="submitDate"
-                    value={formData.submitDate}
-                    onChange={handleChange}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
-                  />
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     提交人 <span className="text-red-500">*</span>
@@ -333,7 +295,7 @@ export default function SubmitIssuePage() {
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
                   >
                     <option value="">请选择机型</option>
-                    {models.map(model => (
+                    {models.filter(m => m.isEnabled).map(model => (
                       <option key={model.id} value={model.id}>{model.name}</option>
                     ))}
                   </select>
@@ -551,29 +513,6 @@ export default function SubmitIssuePage() {
               </div>
             </section>
 
-            {/* Section 3.5: Custom Fields */}
-            {customFields.length > 0 && (
-              <section id="custom" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden scroll-mt-24">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                  <h3 className="text-base font-semibold text-gray-900 flex items-center">
-                    <ClipboardList className="w-5 h-5 mr-2 text-teal-500" />
-                    调查问卷
-                  </h3>
-                </div>
-                <div className="p-6 grid grid-cols-1 gap-6">
-                  {customFields.map((field) => (
-                    <div key={field.id}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {field.label}
-                        {field.required && <span className="text-red-500 ml-1">*</span>}
-                      </label>
-                      {renderCustomField(field)}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* Section 4: Troubleshooting */}
             <section id="troubleshoot" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden scroll-mt-24">
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
@@ -632,6 +571,32 @@ export default function SubmitIssuePage() {
                 </div>
               </div>
             </section>
+
+            {/* Section 3.5: Custom Fields */}
+            {customFields.length > 0 && (
+              <section id="custom" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden scroll-mt-24">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                  <h3 className="text-base font-semibold text-gray-900 flex items-center">
+                    <ClipboardList className="w-5 h-5 mr-2 text-teal-500" />
+                    附加信息
+                  </h3>
+                </div>
+                <div className="p-6 grid grid-cols-1 gap-6">
+                  {customFields.map((field) => (
+                    <div key={field.id}>
+                      <label className={cn(
+                        "block text-sm mb-1",
+                        field.required ? "font-bold text-gray-900" : "font-medium text-gray-500"
+                      )}>
+                        {field.label}
+                        {field.required && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      {renderCustomField(field)}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <div className="flex justify-end pt-4 pb-12">
               <button

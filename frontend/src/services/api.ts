@@ -14,6 +14,7 @@ export const api = axios.create({
 export interface DeviceModel {
   id: number;
   name: string;
+  isEnabled: boolean; // 新增字段
 }
 
 export interface Attachment {
@@ -113,8 +114,8 @@ export const settingsService = {
     const response = await api.post<DeviceModel>('/settings/models', { name });
     return response.data;
   },
-  updateModel: async (id: number, name: string) => {
-    const response = await api.put<DeviceModel>(`/settings/models/${id}`, { name });
+  updateModel: async (id: number, data: { name?: string; isEnabled?: boolean }) => {
+    const response = await api.put<DeviceModel>(`/settings/models/${id}`, data);
     return response.data;
   },
   deleteModel: async (id: number) => {
@@ -175,8 +176,16 @@ export const issueService = {
   },
 
   // 获取问题列表
-  getIssues: async (page = 1, limit = 20, status?: string, customerName?: string, modelId?: string) => {
-    const params = { page, limit, status, customerName, modelId };
+  getIssues: async (
+    page = 1, 
+    limit = 20, 
+    status?: string, 
+    search?: string, 
+    modelId?: string,
+    startDate?: string,
+    endDate?: string
+  ) => {
+    const params = { page, limit, status, search, modelId, startDate, endDate };
     const response = await api.get<PaginatedResponse<Issue>>('/issues', { params });
     return response.data;
   },

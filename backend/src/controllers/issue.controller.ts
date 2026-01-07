@@ -35,8 +35,10 @@ interface GetIssuesQuery {
   page?: number;
   limit?: number;
   status?: IssueStatus;
-  customerName?: string;
+  search?: string; // 改名为 search，支持全能搜索
   modelId?: number;
+  startDate?: string; // 新增开始时间
+  endDate?: string;   // 新增结束时间
 }
 
 interface UpdateStatusBody {
@@ -72,13 +74,15 @@ export const issueController = {
   // 获取问题列表
   findAll: async (request: FastifyRequest<{ Querystring: GetIssuesQuery }>, reply: FastifyReply) => {
     try {
-      const { page, limit, status, customerName, modelId } = request.query;
+      const { page, limit, status, search, modelId, startDate, endDate } = request.query;
       const result = await issueService.findAll(
         Number(page) || 1,
         Number(limit) || 20,
         status,
-        customerName,
-        modelId ? Number(modelId) : undefined
+        search,
+        modelId ? Number(modelId) : undefined,
+        startDate,
+        endDate
       );
       return reply.send(result);
     } catch (error) {

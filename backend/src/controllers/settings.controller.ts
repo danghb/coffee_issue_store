@@ -16,19 +16,25 @@ export const settingsController = {
   createModel: async (request: FastifyRequest<{ Body: { name: string } }>, reply: FastifyReply) => {
     try {
       if (!request.body.name) return reply.code(400).send({ error: 'Name is required' });
-      const model = await settingsService.createModel(request.body.name);
-      return reply.code(201).send(model);
+      try {
+        const model = await settingsService.createModel(request.body.name);
+        return reply.code(201).send(model);
+      } catch (e: any) {
+        if (e.message === 'Model already exists') {
+           return reply.code(409).send({ error: 'Model already exists' });
+        }
+        throw e;
+      }
     } catch (error) {
       request.log.error(error);
       return reply.code(500).send({ error: 'Internal Server Error' });
     }
   },
 
-  updateModel: async (request: FastifyRequest<{ Params: { id: string }, Body: { name: string } }>, reply: FastifyReply) => {
+  updateModel: async (request: FastifyRequest<{ Params: { id: string }, Body: { name?: string, isEnabled?: boolean } }>, reply: FastifyReply) => {
     try {
       const id = Number(request.params.id);
-      if (!request.body.name) return reply.code(400).send({ error: 'Name is required' });
-      const model = await settingsService.updateModel(id, request.body.name);
+      const model = await settingsService.updateModel(id, request.body);
       return reply.send(model);
     } catch (error) {
       request.log.error(error);

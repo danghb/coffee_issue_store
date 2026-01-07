@@ -11,24 +11,62 @@ const prisma = new PrismaClient({
 
 async function main() {
   const models = [
-    { name: 'Model A (Standard)' },
-    { name: 'Model B (Pro)' },
-    { name: 'Model C (Lite)' },
-    { name: 'Legacy Device X' },
+    { name: 'M50' },
+    { name: 'E60' },
+    { name: 'K95PLUS' },
+    { name: 'X' },
+    { name: 'Y' },
+    { name: 'O' },
+    { name: 'Z' },
+  ]
+
+  const oldModels = [
+    'Model A (Standard)',
+    'Model B (Pro)',
+    'Model C (Lite)',
+    'Legacy Device X'
   ]
 
   console.log('Start seeding...')
   
+  // 1. Disable/Delete old default models
+  for (const oldName of oldModels) {
+    const existing = await prisma.deviceModel.findUnique({ where: { name: oldName } })
+    if (existing) {
+      try {
+        // Try to delete first (clean up if unused)
+        await prisma.deviceModel.delete({ where: { id: existing.id } })
+        console.log(`Deleted old model: ${oldName}`)
+      } catch (e) {
+        // If delete fails (foreign key constraint), soft delete it
+        await prisma.deviceModel.update({
+          where: { id: existing.id },
+          data: { isEnabled: false }
+        })
+        console.log(`Soft deleted (disabled) old model: ${oldName}`)
+      }
+    }
+  }
+
+  // 2. Create/Enable new models
   for (const model of models) {
-    const exists = await prisma.deviceModel.findUnique({
+    const existing = await prisma.deviceModel.findUnique({
       where: { name: model.name }
     })
     
-    if (!exists) {
+    if (!existing) {
       const result = await prisma.deviceModel.create({
-        data: model,
+        data: { ...model, isEnabled: true },
       })
-      console.log(`Created model with id: ${result.id}`)
+      console.log(`Created model: ${model.name}`)
+    } else {
+      if (!existing.isEnabled) {
+        await prisma.deviceModel.update({
+          where: { id: existing.id },
+          data: { isEnabled: true }
+        })
+        console.log(`Enabled existing model: ${model.name}`)
+      }
     }
   }
   

@@ -8,9 +8,10 @@ datasource db {
 }
 
 model DeviceModel {
-  id   Int    @id @default(autoincrement())
-  name String @unique
-  issues Issue[]
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isEnabled Boolean  @default(true) // Soft delete flag
+  issues    Issue[]
 }
 
 model Issue {

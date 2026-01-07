@@ -143,7 +143,7 @@ export default function IssueDetailPage() {
     return (
       <section className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-4 py-5 sm:px-6 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wider">调查问卷 (补充信息)</h3>
+          <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wider">附加信息</h3>
         </div>
         <div className="px-4 py-5 sm:p-6 space-y-3">
           {Object.entries(data).map(([key, value]) => (

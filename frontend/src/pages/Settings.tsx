@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { settingsService, type DeviceModel, type FormField } from '../services/api';
-import { Loader2, Plus, Trash2, Edit2, Check, X, Box, ListChecks } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit2, Check, X, Box, ListChecks, Power, PowerOff } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function SettingsPage() {
@@ -96,13 +96,24 @@ function ModelSettings() {
     }
   };
 
+  const handleToggleStatus = async (model: DeviceModel) => {
+    try {
+      await settingsService.updateModel(model.id, { isEnabled: !model.isEnabled });
+      loadModels();
+    } catch (err) {
+      alert('状态更新失败');
+    }
+  };
+
   const handleDelete = async (id: number) => {
-    if (!window.confirm('确定删除该机型吗？')) return;
+    // 这里的删除仅作为最后的手段（物理删除），仅当无关联数据时才成功
+    // 但 UI 上主要引导用户使用“停用”
+    if (!window.confirm('确定彻底删除该机型吗？如果该机型下有问题记录，建议使用“停用”功能。')) return;
     try {
       await settingsService.deleteModel(id);
       loadModels();
     } catch (err) {
-      alert('删除失败');
+      alert('删除失败：该机型下可能存在关联的问题记录，请尝试“停用”该机型。');
     }
   };
 
@@ -151,12 +162,29 @@ function ModelSettings() {
                 <button onClick={() => setEditingId(null)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-md"><X className="w-4 h-4" /></button>
               </div>
             ) : (
-              <span className="text-sm font-medium text-gray-900 pl-2">{model.name}</span>
+              <div className="flex items-center gap-2">
+                <span className={cn("text-sm font-medium pl-2", model.isEnabled ? "text-gray-900" : "text-gray-400 line-through")}>
+                  {model.name}
+                </span>
+                {!model.isEnabled && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">已停用</span>}
+              </div>
             )}
             
             <div className="flex items-center gap-1 ml-4">
               {editingId !== model.id && (
                 <>
+                  <button
+                    onClick={() => handleToggleStatus(model)}
+                    className={cn(
+                      "p-2 rounded-md transition-colors",
+                      model.isEnabled 
+                        ? "text-green-600 hover:bg-green-50" 
+                        : "text-gray-400 hover:bg-gray-100"
+                    )}
+                    title={model.isEnabled ? "点击停用" : "点击启用"}
+                  >
+                    {model.isEnabled ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+                  </button>
                   <button
                     onClick={() => { setEditingId(model.id); setEditName(model.name); }}
                     className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"

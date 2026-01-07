@@ -14,7 +14,9 @@ export default function IssueListPage() {
   // 筛选状态
   const [statusFilter, setStatusFilter] = useState('');
   const [modelFilter, setModelFilter] = useState('');
-  const [customerSearch, setCustomerSearch] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [models, setModels] = useState<DeviceModel[]>([]);
 
   useEffect(() => {
@@ -23,7 +25,12 @@ export default function IssueListPage() {
 
   useEffect(() => {
     fetchIssues();
-  }, [page, statusFilter, modelFilter, customerSearch]);
+  }, [page]); // 仅在页码变化时自动刷新
+
+  const handleSearch = () => {
+    setPage(1); // 重置为第一页
+    fetchIssues(); // 手动触发查询
+  };
 
   const loadModels = async () => {
     try {
@@ -37,7 +44,15 @@ export default function IssueListPage() {
   const fetchIssues = async () => {
     try {
       setLoading(true);
-      const data = await issueService.getIssues(page, 20, statusFilter || undefined, customerSearch || undefined, modelFilter || undefined);
+      const data = await issueService.getIssues(
+        page, 
+        20, 
+        statusFilter || undefined, 
+        searchKeyword || undefined, 
+        modelFilter || undefined,
+        startDate || undefined,
+        endDate || undefined
+      );
       setIssues(data.items);
       setTotalPages(data.meta.totalPages);
     } catch (err) {
@@ -94,20 +109,39 @@ export default function IssueListPage() {
       
       {/* Filters Card */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-             <div className="relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+             <div className="relative sm:col-span-2">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-4 w-4 text-gray-400" />
                 </div>
                 <input
                   type="text"
                   className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                  placeholder="搜索客户名称..."
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="搜索机型、客户、SN、描述..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
              </div>
              
+             <div className="flex gap-2">
+                <input
+                  type="date"
+                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  placeholder="开始日期"
+                />
+                <span className="self-center text-gray-400">-</span>
+                <input
+                  type="date"
+                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  placeholder="结束日期"
+                />
+             </div>
+
              <div>
                <select
                  value={statusFilter}
@@ -131,6 +165,16 @@ export default function IssueListPage() {
                  <option value="">所有机型</option>
                  {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                </select>
+             </div>
+
+             <div className="sm:col-span-2 lg:col-span-5 flex justify-end">
+               <button
+                 onClick={handleSearch}
+                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors w-full sm:w-auto justify-center"
+               >
+                 <Search className="w-4 h-4 mr-2" />
+                 查询
+               </button>
              </div>
           </div>
       </div>

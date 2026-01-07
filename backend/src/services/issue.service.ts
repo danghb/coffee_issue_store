@@ -76,14 +76,57 @@ export const issueService = {
   },
 
   // 获取问题列表 (支持分页和筛选)
-  async findAll(page = 1, limit = 20, status?: IssueStatus, customerName?: string, modelId?: number) {
+  async findAll(
+    page = 1, 
+    limit = 20, 
+    status?: IssueStatus, 
+    search?: string, 
+    modelId?: number,
+    startDate?: string,
+    endDate?: string
+  ) {
     const skip = (page - 1) * limit;
     const take = limit === -1 ? undefined : limit; // -1 代表全部
     
+    // 构建时间范围查询
+    let dateFilter: any = undefined;
+    if (startDate || endDate) {
+      dateFilter = {};
+      if (startDate) {
+        dateFilter.gte = new Date(startDate);
+      }
+      if (endDate) {
+        // 结束日期通常需要包含当天的最后一刻，所以如果是 '2023-01-01'，应查到 '2023-01-01 23:59:59'
+        // 这里简单处理，假设前端传的是日期字符串，我们+1天并设为lt，或者前端传完整时间
+        // 为了方便，假设前端传的是 YYYY-MM-DD
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+    }
+
+    // 构建搜索查询 (多字段模糊匹配)
+    let searchFilter: any = undefined;
+    if (search) {
+      searchFilter = {
+        OR: [
+          { title: { contains: search } },
+          { description: { contains: search } },
+          { customerName: { contains: search } },
+          { reporterName: { contains: search } },
+          { serialNumber: { contains: search } },
+          { model: { name: { contains: search } } } // 关联表查询
+        ]
+      };
+    }
+
     const where = {
-      status: status ? status : undefined,
-      customerName: customerName ? { contains: customerName } : undefined, // 模糊搜索
-      modelId: modelId ? modelId : undefined
+      AND: [
+        status ? { status } : {},
+        modelId ? { modelId } : {},
+        dateFilter ? { submitDate: dateFilter } : {}, // 假设按照提交时间筛选
+        searchFilter ? searchFilter : {}
+      ]
     };
 
     const [total, items] = await prisma.$transaction([
