@@ -8,6 +8,8 @@ interface CreateIssueInput {
   reporterName: string;
   severity?: string; // New
   customData?: any; // New
+  tags?: string[]; // New: Array of strings
+  targetDate?: string; // New
   submitDate?: string;
   contact?: string;
   serialNumber?: string;
@@ -81,7 +83,7 @@ export const issueService = {
   async create(data: CreateIssueInput) {
     return prisma.issue.create({
       data: {
-        nanoId: generateNanoId(), 
+        nanoId: generateNanoId(),
         title: data.title,
         description: data.description,
         modelId: data.modelId,
@@ -106,16 +108,21 @@ export const issueService = {
         cleaned: data.cleaned,
         replacedPart: data.replacedPart,
         troubleshooting: data.troubleshooting,
-        
+
+
+
         // New Fields
         severity: data.severity || 'MEDIUM',
+        tags: data.tags ? JSON.stringify(data.tags) : undefined, // Store as JSON string
+        targetDate: parseDate(data.targetDate),
+
         // priority: PENDING by default (set by admin later)
-        
+
         status: IssueStatus.PENDING, // 默认状态
         attachments: data.attachmentIds && data.attachmentIds.length > 0 ? {
           connect: data.attachmentIds.map(id => ({ id }))
         } : undefined,
-        
+
         customData: data.customData ? JSON.stringify(data.customData) : undefined
       },
       include: {
@@ -127,17 +134,17 @@ export const issueService = {
 
   // 获取问题列表 (支持分页和筛选)
   async findAll(
-    page = 1, 
-    limit = 20, 
-    status?: IssueStatus, 
-    search?: string, 
+    page = 1,
+    limit = 20,
+    status?: IssueStatus,
+    search?: string,
     modelId?: number,
     startDate?: string,
     endDate?: string
   ) {
     const skip = (page - 1) * limit;
     const take = limit === -1 ? undefined : limit; // -1 代表全部
-    
+
     // 构建时间范围查询
     let dateFilter: any = undefined;
     if (startDate || endDate) {
@@ -208,8 +215,8 @@ export const issueService = {
 
   // 获取单个问题详情 (支持 ID 或 NanoID)
   async findOne(idOrNanoId: number | string) {
-    const where = typeof idOrNanoId === 'number' 
-      ? { id: idOrNanoId } 
+    const where = typeof idOrNanoId === 'number'
+      ? { id: idOrNanoId }
       : { nanoId: idOrNanoId };
 
     return prisma.issue.findUnique({
@@ -228,11 +235,11 @@ export const issueService = {
       }
     });
   },
-  
+
   // 获取所有机型
   async getDeviceModels() {
     return prisma.deviceModel.findMany({
-        orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' }
     });
   },
 
@@ -241,9 +248,9 @@ export const issueService = {
     // 1. 获取当前状态
     const issue = await prisma.issue.findUnique({ where: { id } });
     if (!issue) throw new Error('Issue not found');
-    
+
     const oldStatus = issue.status;
-    
+
     // 如果状态没有变化，直接返回
     if (oldStatus === status) return issue;
 
@@ -253,7 +260,7 @@ export const issueService = {
         where: { id },
         data: { status }
       });
-      
+
       await tx.comment.create({
         data: {
           issueId: id,
@@ -290,7 +297,7 @@ export const issueService = {
         // So we need to link them to both Issue and Comment.
         await tx.attachment.updateMany({
           where: { id: { in: attachmentIds } },
-          data: { 
+          data: {
             commentId: comment.id,
             issueId: id, // Ensure it belongs to this issue
             isInternal: isInternal // Inherit visibility from comment

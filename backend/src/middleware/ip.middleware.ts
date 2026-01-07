@@ -68,6 +68,11 @@ function isPrivateIP(ip: string): boolean {
 }
 
 export const ipWhitelistMiddleware = async (request: FastifyRequest, reply: FastifyReply) => {
+    // Allow disabling the check via environment variable for development/testing
+    if (process.env.ENABLE_IP_WHITELIST === 'false') {
+        return;
+    }
+
     // Allow CORS preflight requests
     if (request.method === 'OPTIONS') return;
 
@@ -85,8 +90,8 @@ export const ipWhitelistMiddleware = async (request: FastifyRequest, reply: Fast
     request.log.warn(`Blocked external access from IP: ${request.ip}`);
     
     // TEMPORARY: Allow all for troubleshooting
-    // return reply.code(403).send({ 
-    //     error: 'Access Denied',
-    //     message: 'This service is restricted to internal network access only.' 
-    // });
+    return reply.code(403).send({ 
+        error: 'Access Denied',
+        message: 'This service is restricted to internal network access only.' 
+    });
 };

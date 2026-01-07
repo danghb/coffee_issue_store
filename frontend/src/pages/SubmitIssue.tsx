@@ -3,6 +3,8 @@ import { issueService, settingsService, type DeviceModel, type CreateIssueData, 
 import { cn } from '../lib/utils';
 import { Loader2, CheckCircle2, AlertCircle, Calendar, Info, Settings, Wrench, FileImage, ClipboardList } from 'lucide-react';
 import { FileUpload } from '../components/Upload';
+import RichTextEditor from '../components/RichTextEditor';
+import { useNavigate } from 'react-router-dom';
 
 // 表单分块配置
 const SECTIONS = [
@@ -19,9 +21,8 @@ export default function SubmitIssuePage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [activeSection, setActiveSection] = useState('basic');
-  const [successData, setSuccessData] = useState<{ id: number; nanoId: string } | null>(null);
+  const navigate = useNavigate();
 
   // 表单状态
   const [formData, setFormData] = useState<Partial<CreateIssueData>>({
@@ -29,6 +30,7 @@ export default function SubmitIssuePage() {
     submitDate: new Date().toISOString().split('T')[0],
     reporterName: '',
     modelId: undefined,
+    description: '', // Initialize description for RichTextEditor
     // ...
     attachmentIds: []
   });
@@ -94,8 +96,9 @@ export default function SubmitIssuePage() {
       const existingHistory = JSON.parse(localStorage.getItem('issue_history') || '[]');
       localStorage.setItem('issue_history', JSON.stringify([historyItem, ...existingHistory]));
 
-      setSuccessData({ id: result.id, nanoId: result.nanoId });
-      setSuccess(true);
+      // Redirect to the tracking page with success state
+      navigate(`/track/${result.nanoId}`, { state: { submissionSuccess: true, nanoId: result.nanoId } });
+
       // Reset form (simplified)
       setFormData({
         submitDate: new Date().toISOString().split('T')[0],
@@ -215,27 +218,7 @@ export default function SubmitIssuePage() {
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">提交成功</h2>
-          <div className="bg-blue-50 p-4 rounded-lg mb-6 text-left">
-            <p className="text-sm text-gray-600 mb-1">您的查询编码 (请妥善保存):</p>
-            <p className="text-2xl font-mono font-bold text-blue-600 select-all">{successData?.nanoId}</p>
-            <p className="text-xs text-gray-400 mt-2">凭此编码可在“进度查询”页面追踪处理进度</p>
-          </div>
-          <button
-            onClick={() => setSuccess(false)}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
-          >
-            提交新问题
-          </button>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -417,14 +400,10 @@ export default function SubmitIssuePage() {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">详细描述 <span className="text-red-500">*</span></label>
-                  <textarea
-                    name="description"
-                    rows={4}
-                    required
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
-                    placeholder="请详细描述问题发生的经过、现象等..."
+                  <RichTextEditor
+                    value={formData.description || ''}
+                    onChange={(html) => setFormData(prev => ({ ...prev, description: html }))}
+                    editable={true}
                   />
                 </div>
 

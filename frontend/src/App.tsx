@@ -10,17 +10,7 @@ import Layout from './components/Layout';
 import { authService } from './services/api';
 import './App.css';
 
-// 保护路由组件
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const user = authService.getCurrentUser();
-  const location = useLocation();
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
-};
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -41,32 +31,16 @@ function App() {
           <Route path="/track/:id" element={<IssueDetailPage />} /> {/* Reuse Detail Page for Public Tracking */}
           
           {/* 问题列表页 (需登录) */}
-          <Route path="/issues" element={
-            <ProtectedRoute>
-              <IssueListPage />
-            </ProtectedRoute>
-          } />
+          <Route path="/issues" element={<ProtectedRoute><IssueListPage /></ProtectedRoute>} />
           
           {/* 问题详情页 (需登录 - 游客查询待后续开发) */}
-          <Route path="/issues/:id" element={
-            <ProtectedRoute>
-              <IssueDetailPage />
-            </ProtectedRoute>
-          } />
+          <Route path="/issues/:id" element={<ProtectedRoute><IssueDetailPage /></ProtectedRoute>} />
 
           {/* 统计看板页 (需登录) */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          } />
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
 
           {/* 设置页 (需登录) */}
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          } />
+          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         </Routes>
       </Layout>
     </Router>

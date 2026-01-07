@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, ArrowRight, Clock, ChevronRight } from 'lucide-react';
+import { Search, Loader2, ArrowRight, Clock, ChevronRight, AlertCircle } from 'lucide-react';
 import { issueService } from '../services/api';
 
 export default function IssueTrackingPage() {
@@ -48,30 +48,35 @@ export default function IssueTrackingPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8 text-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">咖啡机问题进度查询</h1>
-          <p className="mt-2 text-gray-500">输入查询编码查看处理进度和最新回复</p>
-        </div>
+    <div className="max-w-2xl mx-auto space-y-8 pt-4">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">咖啡机问题进度查询</h1>
+        <p className="text-sm text-gray-500 mt-1">输入查询编码查看处理进度和最新回复</p>
+      </div>
 
-        <form onSubmit={handleSearch} className="mt-8 space-y-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8">
+        <form onSubmit={handleSearch} className="space-y-6">
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+            <label htmlFor="issueId" className="block text-sm font-medium text-gray-700 mb-2">查询编码</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                id="issueId"
+                required
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-shadow shadow-sm font-mono"
+                placeholder="请输入查询编码"
+                value={issueId}
+                onChange={(e) => setIssueId(e.target.value)}
+              />
             </div>
-            <input
-              type="text"
-              required
-              className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-shadow shadow-sm font-mono"
-              placeholder="请输入查询编码"
-              value={issueId}
-              onChange={(e) => setIssueId(e.target.value)}
-            />
           </div>
 
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 p-2 rounded-lg">
+            <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-2" />
               {error}
             </div>
           )}
@@ -79,7 +84,7 @@ export default function IssueTrackingPage() {
           <button
             type="submit"
             disabled={loading || !issueId}
-            className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
+            className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
           >
             {loading ? (
               <Loader2 className="animate-spin h-5 w-5" />
@@ -91,37 +96,37 @@ export default function IssueTrackingPage() {
             )}
           </button>
         </form>
-        
-        {/* History Section */}
-        {history.length > 0 && (
-          <div className="mt-12 text-left">
-            <h3 className="text-sm font-medium text-gray-500 mb-3 flex items-center">
-              <Clock className="w-4 h-4 mr-1.5" />
-              最近查询记录
-            </h3>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-50">
-              {history.slice(0, 3).map((item: any, idx: number) => (
-                <button
-                  key={idx}
-                  onClick={() => performSearch(item.nanoId || item.id)}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
-                >
-                  <div className="flex flex-col items-start overflow-hidden mr-3">
-                    <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{item.title}</span>
-                    <span className="text-xs text-gray-400 font-mono mt-0.5">
-                      {item.nanoId || `ID: ${item.id}`} &middot; {new Date(item.date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      </div>
 
-        <div className="text-sm text-gray-400 mt-8">
-          <p>查询编码在提交成功时生成，请妥善保管</p>
+      {/* History Section */}
+      {history.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium text-gray-500 mb-3 flex items-center px-1">
+            <Clock className="w-4 h-4 mr-1.5" />
+            最近查询记录
+          </h3>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-50">
+            {history.slice(0, 3).map((item: any, idx: number) => (
+              <button
+                key={idx}
+                onClick={() => performSearch(item.nanoId || item.id)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
+              >
+                <div className="flex flex-col items-start overflow-hidden mr-3">
+                  <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{item.title}</span>
+                  <span className="text-xs text-gray-400 font-mono mt-0.5">
+                    {item.nanoId || `ID: ${item.id}`} &middot; {new Date(item.date).toLocaleDateString()}
+                  </span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+              </button>
+            ))}
+          </div>
         </div>
+      )}
+
+      <div className="text-sm text-gray-400 pt-4 border-t border-gray-100">
+        <p>温馨提示：查询编码在提交成功时生成，是找回工单的唯一凭证。</p>
       </div>
     </div>
   );

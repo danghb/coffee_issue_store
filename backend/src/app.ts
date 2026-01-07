@@ -23,7 +23,7 @@ const start = async () => {
   try {
     // 注册插件
     await server.register(cors, { 
-      origin: '*' // 开发阶段允许所有跨域
+      origin: process.env.CORS_ORIGIN || '*' // 生产环境应设为前端域名
     });
     
     // IP Restriction Middleware

@@ -61,6 +61,9 @@ model Issue {
   replacedPart  String?
   troubleshooting String?
 
+  tags          String?  // JSON string array
+  targetDate    DateTime?
+
   status        String   @default("PENDING")
   
   createdAt     DateTime @default(now())

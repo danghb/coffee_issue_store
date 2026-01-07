@@ -74,6 +74,8 @@ export interface Issue {
   frequency?: string;
   phenomenon?: string;
   errorCode?: string;
+  tags?: string; // JSON string ["tag1", "tag2"]
+  targetDate?: string;
 
   // ... existing fields ...
   environment?: string;
@@ -92,10 +94,10 @@ export interface Issue {
   status: string;
   createdAt: string;
   updatedAt: string;
-  
+
   attachments?: Attachment[];
   comments?: Comment[];
-  
+
   // --- 动态字段数据 ---
   customData?: string; // JSON string
 
@@ -192,7 +194,7 @@ export interface LoginResponse {
 
 export const authService = {
   login: async (username: string, password: string) => {
-    const response = await api.post<AuthResponse>('/auth/login', { username, password });
+    const response = await api.post<LoginResponse>('/auth/login', { username, password });
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -214,7 +216,7 @@ export const authService = {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   },
-  
+
   getToken: () => localStorage.getItem('token')
 };
 
@@ -250,10 +252,10 @@ export const issueService = {
 
   // 获取问题列表
   getIssues: async (
-    page = 1, 
-    limit = 20, 
-    status?: string, 
-    search?: string, 
+    page = 1,
+    limit = 20,
+    status?: string,
+    search?: string,
     modelId?: string,
     startDate?: string,
     endDate?: string
@@ -279,7 +281,7 @@ export const issueService = {
   uploadFile: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const response = await api.post<Attachment>('/uploads', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',

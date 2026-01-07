@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { issueService, type Issue, type DeviceModel } from '../services/api';
-import { Loader2, Plus, Search, FileText, Calendar, AlertCircle, Filter, Download, LayoutDashboard, Settings } from 'lucide-react';
+import { useDebounce } from '../lib/hooks';
+import { KanbanBoard } from '../components/KanbanBoard';
+import { Loader2, Plus, Search, FileText, Calendar, AlertCircle, Filter, Download, LayoutDashboard, Settings, Columns } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function IssueListPage() {
@@ -10,7 +12,8 @@ export default function IssueListPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list'); // New
+
   // 筛选状态
   const [statusFilter, setStatusFilter] = useState('');
   const [modelFilter, setModelFilter] = useState('');
@@ -19,18 +22,22 @@ export default function IssueListPage() {
   const [endDate, setEndDate] = useState('');
   const [models, setModels] = useState<DeviceModel[]>([]);
 
+  const debouncedSearchKeyword = useDebounce(searchKeyword, 500);
+
   useEffect(() => {
     loadModels();
   }, []);
 
+  // Clear status filter when switching to Kanban to avoid empty columns
+  useEffect(() => {
+    if (viewMode === 'kanban') {
+      setStatusFilter('');
+    }
+  }, [viewMode]);
+
   useEffect(() => {
     fetchIssues();
-  }, [page]); // 仅在页码变化时自动刷新
-
-  const handleSearch = () => {
-    setPage(1); // 重置为第一页
-    fetchIssues(); // 手动触发查询
-  };
+  }, [page, statusFilter, modelFilter, debouncedSearchKeyword, startDate, endDate]);
 
   const loadModels = async () => {
     try {
@@ -45,10 +52,10 @@ export default function IssueListPage() {
     try {
       setLoading(true);
       const data = await issueService.getIssues(
-        page, 
-        20, 
-        statusFilter || undefined, 
-        searchKeyword || undefined, 
+        page,
+        20,
+        statusFilter || undefined,
+        debouncedSearchKeyword || undefined,
         modelFilter || undefined,
         startDate || undefined,
         endDate || undefined
@@ -64,7 +71,7 @@ export default function IssueListPage() {
   };
 
   const handleExport = () => {
-     window.location.href = '/api/stats/export';
+    window.location.href = '/api/stats/export';
   };
 
   const getStatusColor = (status: string) => {
@@ -82,101 +89,139 @@ export default function IssueListPage() {
     return new Date(dateString).toLocaleDateString('zh-CN');
   };
 
+  const handleStatusChange = async (issueId: number, newStatus: string) => {
+    try {
+      // Optimistic update
+      setIssues(prev => prev.map(issue =>
+        issue.id === issueId ? { ...issue, status: newStatus } : issue
+      ));
+
+      await issueService.updateStatus(issueId, newStatus);
+    } catch (error) {
+      console.error('Failed to update status', error);
+      // Revert or show toast (optional: fetch issues again)
+      fetchIssues();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">问题列表</h1>
-           <p className="text-sm text-gray-500 mt-1">管理和追踪所有上报的产品问题</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">问题列表</h1>
+          <p className="text-sm text-gray-500 mt-1">管理和追踪所有上报的产品问题</p>
         </div>
         <div className="flex space-x-3 w-full sm:w-auto">
+          {/* View Toggle */}
+          <div className="hidden sm:inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn(
+                "inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all",
+                viewMode === 'list'
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-900"
+              )}
+              title="列表视图"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={cn(
+                "inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all",
+                viewMode === 'kanban'
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-900"
+              )}
+              title="看板视图"
+            >
+              <Columns className="w-4 h-4" />
+            </button>
+          </div>
+
           <button
             onClick={handleExport}
             className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
           >
             <Download className="w-4 h-4 mr-2" />
-            导出数据
+            导出
           </button>
           <Link
             to="/submit"
             className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-all hover:shadow-md"
           >
             <Plus className="w-4 h-4 mr-2" />
-            提交新问题
+            提交问题
           </Link>
         </div>
       </div>
-      
+
       {/* Filters Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-             <div className="relative sm:col-span-2">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                  placeholder="搜索机型、客户、SN、描述..."
-                  value={searchKeyword}
-                  onChange={(e) => setSearchKeyword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-             </div>
-             
-             <div className="flex gap-2">
-                <input
-                  type="date"
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  placeholder="开始日期"
-                />
-                <span className="self-center text-gray-400">-</span>
-                <input
-                  type="date"
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  placeholder="结束日期"
-                />
-             </div>
-
-             <div>
-               <select
-                 value={statusFilter}
-                 onChange={(e) => setStatusFilter(e.target.value)}
-                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-gray-50 focus:bg-white transition-colors"
-               >
-                 <option value="">所有状态</option>
-                 <option value="PENDING">待处理</option>
-                 <option value="IN_PROGRESS">处理中</option>
-                 <option value="RESOLVED">已解决</option>
-                 <option value="CLOSED">已关闭</option>
-               </select>
-             </div>
-
-             <div>
-               <select
-                 value={modelFilter}
-                 onChange={(e) => setModelFilter(e.target.value)}
-                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-gray-50 focus:bg-white transition-colors"
-               >
-                 <option value="">所有机型</option>
-                 {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-               </select>
-             </div>
-
-             <div className="sm:col-span-2 lg:col-span-5 flex justify-end">
-               <button
-                 onClick={handleSearch}
-                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors w-full sm:w-auto justify-center"
-               >
-                 <Search className="w-4 h-4 mr-2" />
-                 查询
-               </button>
-             </div>
+      <div className={cn(
+        "bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-4 transition-all duration-300 sticky top-4 z-10",
+        viewMode === 'kanban' ? "mb-0 rounded-b-none border-b-0 shadow-none z-30" : ""
+      )}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="relative sm:col-span-2">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+              placeholder="搜索机型、客户、SN、描述..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+            />
           </div>
+
+          <div className="flex gap-2">
+            <input
+              type="date"
+              className="block w-full px-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              placeholder="开始日期"
+            />
+            <span className="self-center text-gray-400">-</span>
+            <input
+              type="date"
+              className="block w-full px-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              placeholder="结束日期"
+            />
+          </div>
+
+          {viewMode !== 'kanban' && (
+            <div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-gray-50 focus:bg-white transition-colors"
+                title="状态筛选"
+              >
+                <option value="">所有状态</option>
+                <option value="PENDING">待处理</option>
+                <option value="IN_PROGRESS">处理中</option>
+                <option value="RESOLVED">已解决</option>
+                <option value="CLOSED">已关闭</option>
+              </select>
+            </div>
+          )}
+
+          <div>
+            <select
+              value={modelFilter}
+              onChange={(e) => setModelFilter(e.target.value)}
+              className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-gray-50 focus:bg-white transition-colors"
+            >
+              <option value="">所有机型</option>
+              {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Issues List */}
@@ -197,6 +242,12 @@ export default function IssueListPage() {
             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900">暂无问题反馈</h3>
             <p className="mt-1 text-gray-500">点击右上角提交第一个问题</p>
+          </div>
+        ) : viewMode === 'kanban' ? (
+          <div className="bg-gray-50 h-[calc(100vh-14rem)] overflow-hidden rounded-b-xl border border-t-0 border-gray-100">
+            <div className="h-full p-4 overflow-x-auto">
+              <KanbanBoard issues={issues} onStatusChange={handleStatusChange} />
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -262,7 +313,7 @@ export default function IssueListPage() {
             </table>
           </div>
         )}
-        
+
         {/* Pagination */}
         <div className="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
           <div className="flex-1 flex justify-between sm:hidden">
