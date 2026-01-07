@@ -8,7 +8,7 @@ const prisma = new PrismaClient({
 async function enableWal() {
   try {
     await prisma.$connect();
-    await prisma.$executeRawUnsafe('PRAGMA journal_mode=WAL;');
+    await prisma.$queryRawUnsafe('PRAGMA journal_mode=WAL;');
     await prisma.$executeRawUnsafe('PRAGMA synchronous=NORMAL;');
     console.log('SQLite WAL mode enabled');
   } catch (error) {

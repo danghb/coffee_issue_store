@@ -5,10 +5,34 @@ interface CreateIssueInput {
   title: string;
   description: string;
   modelId: number;
-  firmware?: string;
   reporterName: string;
+  submitDate?: string;
   contact?: string;
+  serialNumber?: string;
+  purchaseDate?: string;
+  customerName?: string;
+  firmware?: string;
+  softwareVer?: string;
+  occurredAt?: string;
+  frequency?: string;
+  phenomenon?: string;
+  errorCode?: string;
+  environment?: string;
+  location?: string;
+  waterType?: string;
+  voltage?: string;
+  usageFrequency?: string;
+  restarted?: boolean;
+  cleaned?: boolean;
+  replacedPart?: string;
+  troubleshooting?: string;
+  attachmentIds?: number[];
 }
+
+// 辅助函数：将字符串转换为 Date 对象
+const parseDate = (dateStr?: string) => {
+  return dateStr ? new Date(dateStr) : undefined;
+};
 
 export const issueService = {
   // 创建问题
@@ -18,29 +42,56 @@ export const issueService = {
         title: data.title,
         description: data.description,
         modelId: data.modelId,
-        firmware: data.firmware,
         reporterName: data.reporterName,
         contact: data.contact,
+        submitDate: parseDate(data.submitDate) || new Date(),
+        serialNumber: data.serialNumber,
+        purchaseDate: parseDate(data.purchaseDate),
+        customerName: data.customerName,
+        firmware: data.firmware,
+        softwareVer: data.softwareVer,
+        occurredAt: parseDate(data.occurredAt),
+        frequency: data.frequency,
+        phenomenon: data.phenomenon,
+        errorCode: data.errorCode,
+        environment: data.environment,
+        location: data.location,
+        waterType: data.waterType,
+        voltage: data.voltage,
+        usageFrequency: data.usageFrequency,
+        restarted: data.restarted,
+        cleaned: data.cleaned,
+        replacedPart: data.replacedPart,
+        troubleshooting: data.troubleshooting,
         status: IssueStatus.PENDING, // 默认状态
+        attachments: data.attachmentIds && data.attachmentIds.length > 0 ? {
+          connect: data.attachmentIds.map(id => ({ id }))
+        } : undefined
       },
       include: {
-        model: true // 返回关联的机型信息
+        model: true, // 返回关联的机型信息
+        attachments: true // 返回关联的附件信息
       }
     });
   },
 
   // 获取问题列表 (支持分页和筛选)
-  async findAll(page = 1, limit = 20, status?: IssueStatus) {
+  async findAll(page = 1, limit = 20, status?: IssueStatus, customerName?: string, modelId?: number) {
     const skip = (page - 1) * limit;
+    const take = limit === -1 ? undefined : limit; // -1 代表全部
     
+    const where = {
+      status: status ? status : undefined,
+      customerName: customerName ? { contains: customerName } : undefined, // 模糊搜索
+      modelId: modelId ? modelId : undefined
+    };
+
     const [total, items] = await prisma.$transaction([
-      prisma.issue.count({
-        where: status ? { status } : undefined
-      }),
+      prisma.issue.count({ where }),
       prisma.issue.findMany({
-        where: status ? { status } : undefined,
-        skip,
-        take: limit,
+        where,
+        skip: limit === -1 ? undefined : skip,
+        take,
         orderBy: { createdAt: 'desc' },
         include: {
           model: true,
@@ -57,7 +108,7 @@ export const issueService = {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
+        totalPages: limit === -1 ? 1 : Math.ceil(total / limit)
       }
     };
   },
@@ -80,6 +131,39 @@ export const issueService = {
   async getDeviceModels() {
     return prisma.deviceModel.findMany({
         orderBy: { name: 'asc' }
+    });
+  },
+
+  // 更新问题状态
+  async updateStatus(id: number, status: IssueStatus, author: string = 'System') {
+    // 1. 获取当前状态
+    const issue = await prisma.issue.findUnique({ where: { id } });
+    if (!issue) throw new Error('Issue not found');
+    
+    const oldStatus = issue.status;
+    
+    // 如果状态没有变化，直接返回
+    if (oldStatus === status) return issue;
+
+    // 2. 事务更新：修改状态 + 添加系统记录
+    return prisma.$transaction(async (tx) => {
+      const updatedIssue = await tx.issue.update({
+        where: { id },
+        data: { status }
+      });
+      
+      await tx.comment.create({
+        data: {
+          issueId: id,
+          type: 'STATUS_CHANGE',
+          oldStatus,
+          newStatus: status,
+          author: author,
+          content: `状态变更为 ${status}`
+        }
+      });
+
+      return updatedIssue;
     });
   }
 };

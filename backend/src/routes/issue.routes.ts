@@ -6,4 +6,8 @@ export async function issueRoutes(fastify: FastifyInstance) {
   fastify.get('/', issueController.findAll);
   fastify.get('/:id', issueController.findOne);
   fastify.get('/models', issueController.getModels);
+  
+  // 新增接口
+  fastify.patch('/:id/status', issueController.updateStatus);
+  fastify.post('/:id/comments', issueController.addComment);
 }

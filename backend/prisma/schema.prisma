@@ -7,8 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// SQLite doesn't support Enums, using String
-
 model DeviceModel {
   id   Int    @id @default(autoincrement())
   name String @unique
@@ -17,22 +15,57 @@ model DeviceModel {
 
 model Issue {
   id        Int         @id @default(autoincrement())
-  title     String
-  description String
-  status    String      @default("PENDING")
+  
+  submitDate    DateTime @default(now())
+  reporterName  String
+  contact       String?
+  modelId       Int
+  model         DeviceModel @relation(fields: [modelId], references: [id])
+  serialNumber  String?
+  purchaseDate  DateTime?
+  customerName  String?
+  firmware      String?
+  softwareVer   String?
 
-  modelId   Int
-  model     DeviceModel @relation(fields: [modelId], references: [id])
+  title         String
+  occurredAt    DateTime?
+  frequency     String?
+  phenomenon    String?
+  errorCode     String?
+  description   String
 
-  firmware  String?
-  reporterName String
-  contact   String?
+  environment   String?
+  location      String?
+  waterType     String?
+  voltage       String?
+  usageFrequency String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  restarted     Boolean?
+  cleaned       Boolean?
+  replacedPart  String?
+  troubleshooting String?
 
-  attachments Attachment[]
-  comments    Comment[]
+  status        String   @default("PENDING")
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  attachments   Attachment[]
+  comments      Comment[]
+
+  customData    String? // JSON string to store dynamic form data
+}
+
+model FormField {
+  id          Int      @id @default(autoincrement())
+  label       String
+  type        String   // text, textarea, select, checkbox, radio
+  options     String?  // JSON string for options ["A", "B"]
+  required    Boolean  @default(false)
+  order       Int      @default(0)
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Attachment {
@@ -54,9 +87,9 @@ model Attachment {
 
 model Comment {
   id         Int      @id @default(autoincrement())
-  type       String      @default("MESSAGE")
+  type       String   @default("MESSAGE")
   content    String?
-  isInternal Boolean @default(false)
+  isInternal Boolean  @default(false)
 
   oldStatus  String?
   newStatus  String?
@@ -66,5 +99,5 @@ model Comment {
   createdAt  DateTime @default(now())
 
   issueId    Int
-  issue      Issue @relation(fields: [issueId], references: [id])
+  issue      Issue    @relation(fields: [issueId], references: [id])
 }
