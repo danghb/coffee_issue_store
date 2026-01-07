@@ -49,6 +49,8 @@ interface UpdateStatusBody {
 interface CreateCommentBody {
   content: string;
   author: string;
+  isInternal?: boolean; // New
+  attachmentIds?: number[]; // New
 }
 
 export const issueController = {
@@ -91,14 +93,34 @@ export const issueController = {
     }
   },
 
-  // 获取详情
+  // 获取详情 (Support ID or NanoID)
   findOne: async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     try {
-      const id = Number(request.params.id);
-      const issue = await issueService.findOne(id);
+      const { id } = request.params;
+      const user = request.user as any; // From JWT (optionalAuth middleware should be applied if token exists)
+      
+      // Try to parse as number (for admin/internal ID), otherwise treat as string (NanoID)
+      const numericId = Number(id);
+      const isNumeric = !isNaN(numericId);
+      
+      const issue = await issueService.findOne(isNumeric ? numericId : id);
       
       if (!issue) {
         return reply.code(404).send({ error: 'Issue not found' });
+      }
+
+      // Visibility Filter
+      // If user is NOT (Admin or Developer), hide internal comments and attachments
+      // SUPPORT user is treated as logged-in but restricted.
+      const isInternalViewer = user && (user.role === 'ADMIN' || user.role === 'DEVELOPER');
+      
+      if (!isInternalViewer) {
+        if (issue.comments) {
+          issue.comments = issue.comments.filter(c => !c.isInternal);
+        }
+        if (issue.attachments) {
+          issue.attachments = issue.attachments.filter(a => !a.isInternal);
+        }
       }
 
       return reply.send(issue);
@@ -119,9 +141,14 @@ export const issueController = {
       }
   },
 
-  // 更新状态
+  // 更新状态 (Developer/Admin Only)
   updateStatus: async (request: FastifyRequest<{ Params: { id: string }, Body: UpdateStatusBody }>, reply: FastifyReply) => {
     try {
+      const user = request.user as any;
+      if (!user || (user.role !== 'ADMIN' && user.role !== 'DEVELOPER')) {
+         return reply.code(403).send({ error: 'Forbidden: Developer access required' });
+      }
+
       const id = Number(request.params.id);
       const { status, author } = request.body;
       
@@ -141,20 +168,89 @@ export const issueController = {
   addComment: async (request: FastifyRequest<{ Params: { id: string }, Body: CreateCommentBody }>, reply: FastifyReply) => {
     try {
       const id = Number(request.params.id);
-      const { content, author } = request.body;
+      const { content, author, isInternal, attachmentIds } = request.body;
+      const user = request.user as any; // From JWT middleware
 
       if (!content) {
         return reply.code(400).send({ error: 'Content is required' });
       }
 
-      const comment = await commentService.create({
-        issueId: id,
-        content,
-        author: author || 'Admin',
-        type: 'MESSAGE'
-      });
+      // 自动判断作者类型
+      const authorName = user ? (user.username || 'Admin') : (author || 'Guest');
+      // 记录真实角色，未登录则视为 'SUPPORT' (根据用户定义：未登录用户也属于SUPPORT类型) 或保持 'USER' (Guest)
+      // 为了区分登录与否，未登录保持 'USER'，登录用户记录其 Role
+      const authorType = user ? user.role : 'USER'; 
+      
+      // Determine visibility
+      // If Admin/Developer: use provided isInternal (default true)
+      // If Support/Guest: force isInternal = false
+      
+      let finalIsInternal = false;
+      const canPostInternal = user && (user.role === 'ADMIN' || user.role === 'DEVELOPER');
 
+      if (canPostInternal) {
+          finalIsInternal = (typeof isInternal === 'boolean') ? isInternal : true;
+      } else {
+          // Guest or Support
+          finalIsInternal = false;
+      }
+
+      const comment = await issueService.addComment(id, content, authorName, authorType, finalIsInternal, attachmentIds);
       return reply.code(201).send(comment);
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  },
+
+  // 更新 Issue (Support/Developer/Admin)
+  update: async (request: FastifyRequest<{ Params: { id: string }, Body: any }>, reply: FastifyReply) => {
+    try {
+      const id = Number(request.params.id);
+      const body = request.body as any;
+      const user = request.user as any;
+      
+      // Permission Check
+      // Developer/Admin: Can update everything (including priority/severity)
+      // Support (Logged in): Can update basic info, BUT NOT priority/severity/status directly via this endpoint
+      // Guest: Can update basic info (as per "Unlogged is Support" rule)
+      
+      const isDeveloper = user && (user.role === 'ADMIN' || user.role === 'DEVELOPER');
+      
+      if (!isDeveloper) {
+         // Restricted update for Support/Guest
+         // Remove sensitive fields from body to prevent unauthorized changes
+         delete body.priority;
+         delete body.severity;
+         delete body.status;
+         delete body.parentId; // Cannot merge
+      }
+
+      const updated = await issueService.update(id, body);
+      return reply.send(updated);
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  },
+
+  // 并案处理 (Admin Only)
+  merge: async (request: FastifyRequest<{ Params: { id: string }, Body: { childIds: number[] } }>, reply: FastifyReply) => {
+    try {
+      const id = Number(request.params.id);
+      const { childIds } = request.body;
+      const user = request.user as any;
+
+      if (!childIds || !Array.isArray(childIds) || childIds.length === 0) {
+        return reply.code(400).send({ error: 'childIds must be a non-empty array' });
+      }
+
+      if (childIds.includes(id)) {
+        return reply.code(400).send({ error: 'Cannot merge issue into itself' });
+      }
+
+      await issueService.merge(id, childIds, user?.username || 'Admin');
+      return reply.code(200).send({ message: 'Issues merged successfully' });
     } catch (error) {
       request.log.error(error);
       return reply.code(500).send({ error: 'Internal Server Error' });

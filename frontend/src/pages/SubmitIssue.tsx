@@ -21,6 +21,7 @@ export default function SubmitIssuePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [activeSection, setActiveSection] = useState('basic');
+  const [successData, setSuccessData] = useState<{ id: number; nanoId: string } | null>(null);
 
   // 表单状态
   const [formData, setFormData] = useState<Partial<CreateIssueData>>({
@@ -81,7 +82,19 @@ export default function SubmitIssuePage() {
         customData: JSON.stringify(customData)
       };
       
-      await issueService.createIssue(payload);
+      const result = await issueService.createIssue(payload);
+      
+      // Save to local history
+      const historyItem = {
+        id: result.id,
+        nanoId: result.nanoId,
+        title: result.title,
+        date: new Date().toISOString()
+      };
+      const existingHistory = JSON.parse(localStorage.getItem('issue_history') || '[]');
+      localStorage.setItem('issue_history', JSON.stringify([historyItem, ...existingHistory]));
+
+      setSuccessData({ id: result.id, nanoId: result.nanoId });
       setSuccess(true);
       // Reset form (simplified)
       setFormData({
@@ -208,7 +221,11 @@ export default function SubmitIssuePage() {
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">提交成功</h2>
-          <p className="text-gray-600 mb-6">感谢您的反馈，我们会尽快处理。</p>
+          <div className="bg-blue-50 p-4 rounded-lg mb-6 text-left">
+            <p className="text-sm text-gray-600 mb-1">您的查询编码 (请妥善保存):</p>
+            <p className="text-2xl font-mono font-bold text-blue-600 select-all">{successData?.nanoId}</p>
+            <p className="text-xs text-gray-400 mt-2">凭此编码可在“进度查询”页面追踪处理进度</p>
+          </div>
           <button
             onClick={() => setSuccess(false)}
             className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
@@ -223,8 +240,8 @@ export default function SubmitIssuePage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">提交新问题</h1>
-        <p className="text-sm text-gray-500 mt-1">请填写以下信息以报告产品故障，带 * 为必填项</p>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">咖啡机问题上报</h1>
+        <p className="text-sm text-gray-500 mt-1">请填写以下信息以报告咖啡机故障，带 * 为必填项</p>
       </div>
 
       <div className="flex gap-8 items-start">
@@ -379,6 +396,23 @@ export default function SubmitIssuePage() {
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
                     placeholder="简要描述问题 (例如: 开机无反应)"
                   />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    严重程度
+                  </label>
+                  <select
+                    name="severity"
+                    value={formData.severity || 'MEDIUM'}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
+                  >
+                    <option value="LOW">🟢 轻微 (偶尔影响使用)</option>
+                    <option value="MEDIUM">🟡 一般 (功能受限)</option>
+                    <option value="HIGH">🟠 严重 (无法使用)</option>
+                    <option value="CRITICAL">🔴 紧急 (安全隐患/着火)</option>
+                  </select>
                 </div>
                 
                 <div>

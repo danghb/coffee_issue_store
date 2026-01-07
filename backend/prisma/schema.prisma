@@ -14,8 +14,19 @@ model DeviceModel {
   issues    Issue[]
 }
 
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String   // Hashed password
+  name      String?
+  role      String   @default("ADMIN") // ADMIN, SUPPORT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Issue {
   id        Int         @id @default(autoincrement())
+  nanoId    String      @unique @default("") // 6-8 chars random ID for public tracking
   
   submitDate    DateTime @default(now())
   reporterName  String
@@ -35,6 +46,10 @@ model Issue {
   errorCode     String?
   description   String
 
+  // New Fields
+  severity      String?  // LOW, MEDIUM, HIGH, CRITICAL (Public)
+  priority      String?  // P0, P1, P2, P3 (Internal Only)
+
   environment   String?
   location      String?
   waterType     String?
@@ -53,6 +68,11 @@ model Issue {
 
   attachments   Attachment[]
   comments      Comment[]
+
+  // Issue Merging (Self-relation)
+  parentId      Int?
+  parent        Issue?   @relation("IssueGrouping", fields: [parentId], references: [id])
+  children      Issue[]  @relation("IssueGrouping")
 
   customData    String? // JSON string to store dynamic form data
 }
@@ -77,9 +97,13 @@ model Attachment {
   size      Int
   sha256    String?
   kind      String
+  isInternal Boolean  @default(false) // Visibility flag
 
   issueId   Int?
   issue     Issue?   @relation(fields: [issueId], references: [id])
+  
+  commentId Int?
+  comment   Comment? @relation(fields: [commentId], references: [id])
   
   createdAt DateTime @default(now())
 
@@ -90,15 +114,18 @@ model Comment {
   id         Int      @id @default(autoincrement())
   type       String   @default("MESSAGE")
   content    String?
-  isInternal Boolean  @default(false)
+  isInternal Boolean  @default(true) // Default to internal for safety (if created by Admin)
 
   oldStatus  String?
   newStatus  String?
   
   author     String   
+  authorType String   @default("USER") // USER (Guest), ADMIN (Internal)
 
   createdAt  DateTime @default(now())
 
   issueId    Int
   issue      Issue    @relation(fields: [issueId], references: [id])
+  
+  attachments Attachment[]
 }

@@ -29,13 +29,15 @@ export interface Attachment {
 
 export interface Comment {
   id: number;
+  issueId: number;
   type: string;
-  content: string;
-  isInternal: boolean;
+  content?: string;
   oldStatus?: string;
   newStatus?: string;
   author: string;
+  isInternal: boolean;
   createdAt: string;
+  attachments?: Attachment[]; // New
 }
 
 export interface FormField {
@@ -50,6 +52,7 @@ export interface FormField {
 
 export interface Issue {
   id: number;
+  nanoId: string; // New
   // --- 基本信息 ---
   submitDate: string;
   reporterName: string;
@@ -65,12 +68,14 @@ export interface Issue {
   // --- 问题描述 ---
   title: string;
   description: string;
+  severity?: string; // New
+  priority?: string; // New (Internal)
   occurredAt?: string;
   frequency?: string;
   phenomenon?: string;
   errorCode?: string;
 
-  // --- 环境信息 ---
+  // ... existing fields ...
   environment?: string;
   location?: string;
   waterType?: string;
@@ -93,6 +98,11 @@ export interface Issue {
   
   // --- 动态字段数据 ---
   customData?: string; // JSON string
+
+  // --- 并案处理 ---
+  parentId?: number;
+  parent?: Issue;
+  children?: Issue[];
 }
 
 export interface CreateIssueData {
@@ -100,6 +110,7 @@ export interface CreateIssueData {
   submitDate?: string;
   reporterName: string;
   modelId: number;
+  severity?: string; // New
   // ... 其他字段 ...
   [key: string]: any; // 允许动态字段
 }
@@ -137,6 +148,11 @@ export const settingsService = {
   },
   deleteField: async (id: number) => {
     await api.delete(`/settings/fields/${id}`);
+  },
+  // 管理员更新 Issue
+  update: async (id: number, data: any) => {
+    const response = await api.put<Issue>(`/issues/${id}`, data);
+    return response.data;
   }
 };
 
@@ -162,7 +178,64 @@ export interface DashboardStats {
   trend: { date: string; count: number }[];
 }
 
+export interface User {
+  id: number;
+  username: string;
+  name?: string;
+  role: 'ADMIN' | 'DEVELOPER' | 'SUPPORT';
+}
+
+export interface LoginResponse {
+  user: User;
+  token: string;
+}
+
+export const authService = {
+  login: async (username: string, password: string) => {
+    const response = await api.post<AuthResponse>('/auth/login', { username, password });
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    return response.data;
+  },
+
+  register: async (username: string, password: string, name?: string) => {
+    const response = await api.post<User>('/auth/register', { username, password, name });
+    return response.data;
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  },
+
+  getCurrentUser: (): User | null => {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+  },
+  
+  getToken: () => localStorage.getItem('token')
+};
+
+// Add interceptor to attach token
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const issueService = {
+  // ... existing methods ...
+
+  // 管理员更新 Issue
+  update: async (id: number, data: any) => {
+    const response = await api.put<Issue>(`/issues/${id}`, data);
+    return response.data;
+  },
+
   // 获取统计数据
   getStats: async () => {
     const response = await api.get<DashboardStats>('/stats/dashboard');
@@ -191,7 +264,7 @@ export const issueService = {
   },
 
   // 获取问题详情
-  getIssue: async (id: number) => {
+  getIssue: async (id: number | string) => {
     const response = await api.get<Issue>(`/issues/${id}`);
     return response.data;
   },
@@ -222,8 +295,14 @@ export const issueService = {
   },
 
   // 添加评论
-  addComment: async (id: number, content: string, author?: string) => {
-    const response = await api.post<Comment>(`/issues/${id}/comments`, { content, author });
+  addComment: async (id: number, content: string, author?: string, isInternal?: boolean, attachmentIds?: number[]) => {
+    const response = await api.post<Comment>(`/issues/${id}/comments`, { content, author, isInternal, attachmentIds });
+    return response.data;
+  },
+
+  // 并案处理
+  merge: async (id: number, childIds: number[]) => {
+    const response = await api.post(`/issues/${id}/merge`, { childIds });
     return response.data;
   }
 };

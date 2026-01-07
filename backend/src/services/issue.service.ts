@@ -6,6 +6,8 @@ interface CreateIssueInput {
   description: string;
   modelId: number;
   reporterName: string;
+  severity?: string; // New
+  customData?: any; // New
   submitDate?: string;
   contact?: string;
   serialNumber?: string;
@@ -29,16 +31,57 @@ interface CreateIssueInput {
   attachmentIds?: number[];
 }
 
+import { customAlphabet } from 'nanoid';
+
+// Uppercase + Numbers, 12 chars
+const generateNanoId = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 12);
+
 // 辅助函数：将字符串转换为 Date 对象
 const parseDate = (dateStr?: string) => {
   return dateStr ? new Date(dateStr) : undefined;
 };
 
 export const issueService = {
+  // 并案处理
+  async merge(parentId: number, childIds: number[], author: string = 'Admin') {
+    return prisma.$transaction(async (tx) => {
+      // Update children
+      await tx.issue.updateMany({
+        where: { id: { in: childIds } },
+        data: { parentId }
+      });
+
+      // Add comment to parent
+      await tx.comment.create({
+        data: {
+          issueId: parentId,
+          content: `已关联子工单: ${childIds.join(', ')}`,
+          author,
+          type: 'SYSTEM',
+          isInternal: true
+        }
+      });
+
+      // Add comment to children
+      for (const childId of childIds) {
+        await tx.comment.create({
+          data: {
+            issueId: childId,
+            content: `此工单已并入主工单 #${parentId}`,
+            author,
+            type: 'SYSTEM',
+            isInternal: false // Visible to user so they know
+          }
+        });
+      }
+    });
+  },
+
   // 创建问题
   async create(data: CreateIssueInput) {
     return prisma.issue.create({
       data: {
+        nanoId: generateNanoId(), 
         title: data.title,
         description: data.description,
         modelId: data.modelId,
@@ -63,10 +106,17 @@ export const issueService = {
         cleaned: data.cleaned,
         replacedPart: data.replacedPart,
         troubleshooting: data.troubleshooting,
+        
+        // New Fields
+        severity: data.severity || 'MEDIUM',
+        // priority: PENDING by default (set by admin later)
+        
         status: IssueStatus.PENDING, // 默认状态
         attachments: data.attachmentIds && data.attachmentIds.length > 0 ? {
           connect: data.attachmentIds.map(id => ({ id }))
-        } : undefined
+        } : undefined,
+        
+        customData: data.customData ? JSON.stringify(data.customData) : undefined
       },
       include: {
         model: true, // 返回关联的机型信息
@@ -156,16 +206,25 @@ export const issueService = {
     };
   },
 
-  // 获取单个问题详情
-  async findOne(id: number) {
+  // 获取单个问题详情 (支持 ID 或 NanoID)
+  async findOne(idOrNanoId: number | string) {
+    const where = typeof idOrNanoId === 'number' 
+      ? { id: idOrNanoId } 
+      : { nanoId: idOrNanoId };
+
     return prisma.issue.findUnique({
-      where: { id },
+      where: where as any, // Prisma types tricky with union
       include: {
         model: true,
         attachments: true,
         comments: {
-          orderBy: { createdAt: 'asc' }
-        }
+          orderBy: { createdAt: 'asc' },
+          include: {
+            attachments: true // Include attachments for comments
+          }
+        },
+        parent: true,
+        children: true
       }
     });
   },
@@ -207,6 +266,50 @@ export const issueService = {
       });
 
       return updatedIssue;
+    });
+  },
+
+  // 添加评论
+  async addComment(id: number, content: string, author: string, authorType: 'USER' | 'ADMIN' = 'USER', isInternal: boolean = false, attachmentIds?: number[]) {
+    return prisma.$transaction(async (tx) => {
+      const comment = await tx.comment.create({
+        data: {
+          issueId: id,
+          content,
+          author,
+          authorType,
+          isInternal,
+          type: 'MESSAGE'
+        }
+      });
+
+      if (attachmentIds && attachmentIds.length > 0) {
+        // Link attachments to this comment (and ensure they are linked to the issue too, though they should be already if uploaded in context? 
+        // Actually, uploaded files might not be linked to issue yet if they were just uploaded. 
+        // The UploadService just creates them.
+        // So we need to link them to both Issue and Comment.
+        await tx.attachment.updateMany({
+          where: { id: { in: attachmentIds } },
+          data: { 
+            commentId: comment.id,
+            issueId: id, // Ensure it belongs to this issue
+            isInternal: isInternal // Inherit visibility from comment
+          }
+        });
+      }
+
+      return comment;
+    });
+  },
+
+  // 管理员更新 Issue (包括优先级、严重程度)
+  async update(id: number, data: any) {
+    return prisma.issue.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date()
+      }
     });
   }
 };
