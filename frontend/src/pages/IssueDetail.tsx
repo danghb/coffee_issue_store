@@ -180,309 +180,319 @@ export default function IssueDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center">
-              <button onClick={() => navigate('/issues')} className="mr-4 text-gray-500 hover:text-gray-700">
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <h1 className="text-xl font-bold text-gray-900 truncate max-w-lg">
-                <span className="text-gray-500 mr-2">#{issue.id}</span>
-                {issue.title}
-              </h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/issues')} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">#{issue.id}</span>
               <span className={cn(
-                "ml-4 px-2.5 py-0.5 rounded-full text-xs font-medium",
-                issue.status === 'PENDING' ? "bg-yellow-100 text-yellow-800" :
-                issue.status === 'IN_PROGRESS' ? "bg-blue-100 text-blue-800" :
-                issue.status === 'RESOLVED' ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                "px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                issue.status === 'PENDING' ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+                issue.status === 'IN_PROGRESS' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                issue.status === 'RESOLVED' ? "bg-green-50 text-green-700 border-green-200" : 
+                "bg-gray-50 text-gray-700 border-gray-200"
               )}>
                 {issue.status}
               </span>
             </div>
-            <div className="text-sm text-gray-500">
-              提交于 {formatDate(issue.submitDate)}
-            </div>
           </div>
+          <h1 className="text-2xl font-bold text-gray-900 mt-2">{issue.title}</h1>
+          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+            <span className="flex items-center">
+              <Calendar className="w-4 h-4 mr-1.5" />
+              提交于 {formatDate(issue.submitDate)}
+            </span>
+            <span className="flex items-center">
+              <User className="w-4 h-4 mr-1.5" />
+              {issue.reporterName}
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex gap-2">
+           {/* Quick Actions */}
+           {issue.status !== 'IN_PROGRESS' && (
+              <button
+                onClick={() => handleStatusChange('IN_PROGRESS')}
+                disabled={updatingStatus}
+                className="px-4 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors border border-blue-200"
+              >
+                处理中
+              </button>
+            )}
+            {issue.status !== 'RESOLVED' && (
+              <button
+                onClick={() => handleStatusChange('RESOLVED')}
+                disabled={updatingStatus}
+                className="px-4 py-2 bg-green-50 text-green-700 text-sm font-medium rounded-lg hover:bg-green-100 transition-colors border border-green-200"
+              >
+                已解决
+              </button>
+            )}
+             {issue.status !== 'CLOSED' && (
+              <button
+                onClick={() => handleStatusChange('CLOSED')}
+                disabled={updatingStatus}
+                className="px-4 py-2 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+              >
+                关闭
+              </button>
+            )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Main Info */}
+        <div className="lg:col-span-2 space-y-6">
           
-          {/* Left Column: Main Info */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Description */}
-            <section className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                  <FileText className="w-5 h-5 mr-2 text-gray-400" />
-                  问题详情
-                </h3>
-              </div>
-              <div className="px-4 py-5 sm:p-6 space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">详细描述</label>
-                  <div className="mt-2 text-gray-900 whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 p-4 rounded">
-                    {issue.description}
-                  </div>
+          {/* Description Card */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-base font-semibold text-gray-900 flex items-center">
+                <FileText className="w-4 h-4 mr-2 text-blue-500" />
+                问题详情
+              </h3>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">详细描述</label>
+                <div className="text-gray-900 whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-100">
+                  {issue.description}
                 </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                  <div>
-                    <span className="text-sm font-medium text-gray-500 block">发生时间</span>
-                    <span className="text-sm text-gray-900">{formatDate(issue.occurredAt)}</span>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500 block">出现频率</span>
-                    <span className="text-sm text-gray-900">{issue.frequency || '-'}</span>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500 block">问题现象</span>
-                    <span className="text-sm text-gray-900">{issue.phenomenon || '-'}</span>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500 block">错误代码</span>
-                    <span className="text-sm text-gray-900 font-mono">{issue.errorCode || '-'}</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Troubleshooting */}
-            <section className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                  <Wrench className="w-5 h-5 mr-2 text-gray-400" />
-                  排查记录
-                </h3>
-              </div>
-              <div className="px-4 py-5 sm:p-6">
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                   <div className="flex items-center">
-                     <span className={cn("w-3 h-3 rounded-full mr-2", issue.restarted ? "bg-green-500" : "bg-gray-300")} />
-                     <span className="text-sm text-gray-700">尝试重启: {issue.restarted ? '是' : '否'}</span>
-                   </div>
-                   <div className="flex items-center">
-                     <span className={cn("w-3 h-3 rounded-full mr-2", issue.cleaned ? "bg-green-500" : "bg-gray-300")} />
-                     <span className="text-sm text-gray-700">尝试清洁: {issue.cleaned ? '是' : '否'}</span>
-                   </div>
-                 </div>
-                 {issue.replacedPart && (
-                   <div className="mt-4">
-                     <span className="text-sm font-medium text-gray-500 block">更换配件</span>
-                     <span className="text-sm text-gray-900">{issue.replacedPart}</span>
-                   </div>
-                 )}
-                 {issue.troubleshooting && (
-                   <div className="mt-4">
-                     <span className="text-sm font-medium text-gray-500 block">其他排查步骤</span>
-                     <p className="mt-1 text-sm text-gray-900">{issue.troubleshooting}</p>
-                   </div>
-                 )}
-              </div>
-            </section>
-
-            {/* Attachments */}
-            {issue.attachments && issue.attachments.length > 0 && (
-              <section className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                    <ImageIcon className="w-5 h-5 mr-2 text-gray-400" />
-                    附件 ({issue.attachments.length})
-                  </h3>
-                </div>
-                <ul className="divide-y divide-gray-200">
-                  {issue.attachments.map((file) => (
-                    <li key={file.id} className="px-4 py-4 sm:px-6 flex items-center justify-between hover:bg-gray-50">
-                      <div className="flex items-center overflow-hidden">
-                        {getFileIcon(file.mimeType)}
-                        <div className="ml-3 truncate">
-                          <p className="text-sm font-medium text-gray-900 truncate">{file.filename}</p>
-                          <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
-                        </div>
-                      </div>
-                      <a 
-                        href={`/api/uploads/files/${file.path}`} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="ml-4 flex-shrink-0 text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-                      >
-                        <Download className="w-4 h-4 mr-1" />
-                        下载/预览
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* Timeline / Comments */}
-            <section className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                  <MessageSquare className="w-5 h-5 mr-2 text-gray-400" />
-                  处理记录
-                </h3>
-              </div>
-              <div className="px-4 py-5 sm:p-6">
-                {renderTimeline()}
               </div>
               
-              {/* Add Comment Area */}
-              <div className="px-4 py-4 sm:px-6 bg-gray-50 border-t border-gray-200">
-                <form onSubmit={handleAddComment}>
-                  <div>
-                    <label htmlFor="comment" className="sr-only">添加回复</label>
-                    <textarea
-                      id="comment"
-                      name="comment"
-                      rows={3}
-                      className="shadow-sm block w-full focus:ring-blue-500 focus:border-blue-500 sm:text-sm border border-gray-300 rounded-md p-2"
-                      placeholder="添加回复或备注..."
-                      value={commentContent}
-                      onChange={(e) => setCommentContent(e.target.value)}
-                    />
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                     {/* Quick Status Change Buttons */}
-                     <div className="flex space-x-2">
-                        {issue.status !== 'IN_PROGRESS' && (
-                          <button
-                            type="button"
-                            disabled={updatingStatus}
-                            onClick={() => handleStatusChange('IN_PROGRESS')}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200"
-                          >
-                            标记为处理中
-                          </button>
-                        )}
-                        {issue.status !== 'RESOLVED' && (
-                          <button
-                            type="button"
-                            disabled={updatingStatus}
-                            onClick={() => handleStatusChange('RESOLVED')}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200"
-                          >
-                            标记为已解决
-                          </button>
-                        )}
-                         {issue.status !== 'CLOSED' && (
-                          <button
-                            type="button"
-                            disabled={updatingStatus}
-                            onClick={() => handleStatusChange('CLOSED')}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-gray-700 bg-gray-100 hover:bg-gray-200"
-                          >
-                            关闭问题
-                          </button>
-                        )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-xs text-gray-500 block mb-1">发生时间</span>
+                  <span className="text-sm font-medium text-gray-900">{formatDate(issue.occurredAt)}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-xs text-gray-500 block mb-1">出现频率</span>
+                  <span className="text-sm font-medium text-gray-900">{issue.frequency || '-'}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-xs text-gray-500 block mb-1">问题现象</span>
+                  <span className="text-sm font-medium text-gray-900">{issue.phenomenon || '-'}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-xs text-gray-500 block mb-1">错误代码</span>
+                  <span className="text-sm font-mono text-gray-900">{issue.errorCode || '-'}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Troubleshooting Card */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-base font-semibold text-gray-900 flex items-center">
+                <Wrench className="w-4 h-4 mr-2 text-purple-500" />
+                排查记录
+              </h3>
+            </div>
+            <div className="p-6">
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                 <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                   <div className={cn("w-2 h-2 rounded-full mr-3", issue.restarted ? "bg-green-500" : "bg-gray-300")} />
+                   <span className="text-sm font-medium text-gray-700">尝试重启</span>
+                   <span className="ml-auto text-sm text-gray-900">{issue.restarted ? '是' : '否'}</span>
+                 </div>
+                 <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                   <div className={cn("w-2 h-2 rounded-full mr-3", issue.cleaned ? "bg-green-500" : "bg-gray-300")} />
+                   <span className="text-sm font-medium text-gray-700">尝试清洁</span>
+                   <span className="ml-auto text-sm text-gray-900">{issue.cleaned ? '是' : '否'}</span>
+                 </div>
+               </div>
+               
+               {(issue.replacedPart || issue.troubleshooting) && (
+                 <div className="space-y-4">
+                   {issue.replacedPart && (
+                     <div>
+                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">更换配件</span>
+                       <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">{issue.replacedPart}</p>
                      </div>
+                   )}
+                   {issue.troubleshooting && (
+                     <div>
+                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">其他排查步骤</span>
+                       <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">{issue.troubleshooting}</p>
+                     </div>
+                   )}
+                 </div>
+               )}
+            </div>
+          </section>
 
-                    <button
-                      type="submit"
-                      disabled={submittingComment || !commentContent.trim()}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          {/* Attachments Card */}
+          {issue.attachments && issue.attachments.length > 0 && (
+            <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                <h3 className="text-base font-semibold text-gray-900 flex items-center">
+                  <ImageIcon className="w-4 h-4 mr-2 text-indigo-500" />
+                  附件 ({issue.attachments.length})
+                </h3>
+              </div>
+              <ul className="divide-y divide-gray-100">
+                {issue.attachments.map((file) => (
+                  <li key={file.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center overflow-hidden">
+                      <div className="p-2 bg-gray-100 rounded-lg mr-3">
+                         {getFileIcon(file.mimeType)}
+                      </div>
+                      <div className="truncate">
+                        <p className="text-sm font-medium text-gray-900 truncate">{file.filename}</p>
+                        <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                    <a 
+                      href={`/api/uploads/files/${file.path}`} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="ml-4 flex-shrink-0 text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                     >
-                      {submittingComment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                      发送回复
-                    </button>
-                  </div>
-                </form>
-              </div>
+                      <Download className="w-4 h-4 mr-1.5" />
+                      下载
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </section>
-          </div>
+          )}
 
-          {/* Right Column: Sidebar Info */}
-          <div className="space-y-6">
+          {/* Comments / Timeline */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-base font-semibold text-gray-900 flex items-center">
+                <MessageSquare className="w-4 h-4 mr-2 text-green-500" />
+                处理记录
+              </h3>
+            </div>
+            <div className="p-6">
+              {renderTimeline()}
+            </div>
             
-            {/* Device Info */}
-            <section className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="px-4 py-5 sm:px-6 border-b border-gray-200 bg-gray-50">
-                <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wider">设备信息</h3>
-              </div>
-              <div className="px-4 py-5 sm:p-6 space-y-4">
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <form onSubmit={handleAddComment}>
                 <div>
-                  <span className="text-xs text-gray-500 uppercase block mb-1">机型</span>
-                  <span className="text-base font-semibold text-gray-900">{issue.model?.name || 'Unknown'}</span>
+                  <label htmlFor="comment" className="sr-only">添加回复</label>
+                  <textarea
+                    id="comment"
+                    name="comment"
+                    rows={3}
+                    className="block w-full shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border border-gray-300 rounded-lg p-3"
+                    placeholder="添加回复或备注..."
+                    value={commentContent}
+                    onChange={(e) => setCommentContent(e.target.value)}
+                  />
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={submittingComment || !commentContent.trim()}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+                  >
+                    {submittingComment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                    发送回复
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column: Sidebar Info */}
+        <div className="space-y-6">
+          
+          {/* Device Info Card */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">设备信息</h3>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <span className="text-xs text-gray-400 block mb-1">机型</span>
+                <span className="text-base font-semibold text-gray-900 block">{issue.model?.name || 'Unknown'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block mb-1">序列号 (SN)</span>
+                <span className="text-sm font-mono text-gray-700 bg-gray-100 px-2 py-1 rounded inline-block">{issue.serialNumber || '-'}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-400 block mb-1">固件版本</span>
+                  <span className="text-sm text-gray-900">{issue.firmware || '-'}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-gray-500 uppercase block mb-1">序列号 (SN)</span>
-                  <span className="text-sm text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded">{issue.serialNumber || '-'}</span>
+                  <span className="text-xs text-gray-400 block mb-1">软件版本</span>
+                  <span className="text-sm text-gray-900">{issue.softwareVer || '-'}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-xs text-gray-500 uppercase block mb-1">固件版本</span>
-                    <span className="text-sm text-gray-900">{issue.firmware || '-'}</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 uppercase block mb-1">软件版本</span>
-                    <span className="text-sm text-gray-900">{issue.softwareVer || '-'}</span>
-                  </div>
+              </div>
+              <div>
+                 <span className="text-xs text-gray-400 block mb-1">购买日期</span>
+                 <span className="text-sm text-gray-900">{formatDate(issue.purchaseDate).split(' ')[0]}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Reporter Info Card */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">联系人信息</h3>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
+                   {issue.reporterName.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                   <span className="text-xs text-gray-500 uppercase block mb-1">购买日期</span>
-                   <span className="text-sm text-gray-900">{formatDate(issue.purchaseDate).split(' ')[0]}</span>
+                   <p className="text-sm font-medium text-gray-900">{issue.reporterName}</p>
+                   {issue.contact && <p className="text-xs text-gray-500">{issue.contact}</p>}
                 </div>
               </div>
-            </section>
-
-            {/* Reporter Info */}
-            <section className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="px-4 py-5 sm:px-6 border-b border-gray-200 bg-gray-50">
-                <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wider">联系人信息</h3>
-              </div>
-              <div className="px-4 py-5 sm:p-6 space-y-4">
-                <div className="flex items-center">
-                  <User className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-900 font-medium">{issue.reporterName}</span>
+              {issue.customerName && (
+                <div className="pt-3 border-t border-gray-100">
+                  <span className="text-xs text-gray-400 block mb-1">客户名称</span>
+                  <span className="text-sm text-gray-900 font-medium">{issue.customerName}</span>
                 </div>
-                {issue.contact && (
-                  <div className="text-sm text-gray-600 pl-6 break-all">
-                    {issue.contact}
-                  </div>
-                )}
-                {issue.customerName && (
-                  <div className="pt-2 border-t border-gray-100 mt-2">
-                    <span className="text-xs text-gray-500 block">客户名称</span>
-                    <span className="text-sm text-gray-900">{issue.customerName}</span>
-                  </div>
-                )}
-              </div>
-            </section>
+              )}
+            </div>
+          </section>
 
-            {/* Environment Info */}
-            <section className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="px-4 py-5 sm:px-6 border-b border-gray-200 bg-gray-50">
-                <h3 className="text-sm font-medium text-gray-900 uppercase tracking-wider">环境参数</h3>
-              </div>
-              <div className="px-4 py-5 sm:p-6 space-y-3">
-                 <div className="flex justify-between">
-                   <span className="text-sm text-gray-500">使用环境</span>
-                   <span className="text-sm text-gray-900 font-medium">{issue.environment || '-'}</span>
+          {/* Environment Info Card */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">环境参数</h3>
+            </div>
+            <div className="p-5">
+               <dl className="space-y-3">
+                 <div className="flex justify-between items-center">
+                   <dt className="text-sm text-gray-500">使用环境</dt>
+                   <dd className="text-sm font-medium text-gray-900 bg-gray-50 px-2 py-0.5 rounded">{issue.environment || '-'}</dd>
                  </div>
-                 <div className="flex justify-between">
-                   <span className="text-sm text-gray-500">地点</span>
-                   <span className="text-sm text-gray-900 font-medium">{issue.location || '-'}</span>
+                 <div className="flex justify-between items-center">
+                   <dt className="text-sm text-gray-500">地点</dt>
+                   <dd className="text-sm font-medium text-gray-900">{issue.location || '-'}</dd>
                  </div>
-                 <div className="flex justify-between">
-                   <span className="text-sm text-gray-500">水源</span>
-                   <span className="text-sm text-gray-900 font-medium">{issue.waterType || '-'}</span>
+                 <div className="flex justify-between items-center">
+                   <dt className="text-sm text-gray-500">水源</dt>
+                   <dd className="text-sm font-medium text-gray-900">{issue.waterType || '-'}</dd>
                  </div>
-                 <div className="flex justify-between">
-                   <span className="text-sm text-gray-500">电压</span>
-                   <span className="text-sm text-gray-900 font-medium">{issue.voltage || '-'}</span>
+                 <div className="flex justify-between items-center">
+                   <dt className="text-sm text-gray-500">电压</dt>
+                   <dd className="text-sm font-medium text-gray-900">{issue.voltage || '-'}</dd>
                  </div>
-              </div>
-            </section>
-            
-            {/* Custom Data */}
-            {renderCustomData()}
+               </dl>
+            </div>
+          </section>
+          
+          {/* Custom Data Card */}
+          {renderCustomData()}
 
-          </div>
         </div>
       </div>
     </div>

@@ -68,52 +68,40 @@ export default function IssueListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <h1 className="text-xl font-bold text-gray-900">问题列表</h1>
-            <div className="flex space-x-4">
-               <Link
-                to="/dashboard"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <LayoutDashboard className="w-4 h-4 mr-2" />
-                统计看板
-              </Link>
-               <Link
-                to="/settings"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                设置
-              </Link>
-              <button
-                onClick={handleExport}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                导出数据
-              </button>
-              <Link
-                to="/submit"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                提交新问题
-              </Link>
-            </div>
-          </div>
-          
-          {/* Filters */}
-          <div className="py-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-4 gap-4">
-             <div className="relative rounded-md shadow-sm">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">问题列表</h1>
+           <p className="text-sm text-gray-500 mt-1">管理和追踪所有上报的产品问题</p>
+        </div>
+        <div className="flex space-x-3 w-full sm:w-auto">
+          <button
+            onClick={handleExport}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            导出数据
+          </button>
+          <Link
+            to="/submit"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-all hover:shadow-md"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            提交新问题
+          </Link>
+        </div>
+      </div>
+      
+      {/* Filters Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+             <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-4 w-4 text-gray-400" />
                 </div>
                 <input
                   type="text"
-                  className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2 border"
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                   placeholder="搜索客户名称..."
                   value={customerSearch}
                   onChange={(e) => setCustomerSearch(e.target.value)}
@@ -124,7 +112,7 @@ export default function IssueListPage() {
                <select
                  value={statusFilter}
                  onChange={(e) => setStatusFilter(e.target.value)}
-                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border"
+                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-gray-50 focus:bg-white transition-colors"
                >
                  <option value="">所有状态</option>
                  <option value="PENDING">待处理</option>
@@ -138,106 +126,145 @@ export default function IssueListPage() {
                <select
                  value={modelFilter}
                  onChange={(e) => setModelFilter(e.target.value)}
-                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border"
+                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-gray-50 focus:bg-white transition-colors"
                >
                  <option value="">所有机型</option>
                  {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                </select>
              </div>
           </div>
-        </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Issues List */}
+      <div className="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded flex items-center">
+          <div className="p-4 bg-red-50 text-red-700 flex items-center">
             <AlertCircle className="w-5 h-5 mr-2" />
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12">
+          <div className="flex justify-center items-center h-64">
             <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
           </div>
         ) : issues.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
+          <div className="text-center py-12">
             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900">暂无问题反馈</h3>
             <p className="mt-1 text-gray-500">点击右上角提交第一个问题</p>
           </div>
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <ul className="divide-y divide-gray-200">
-              {issues.map((issue) => (
-                <li key={issue.id}>
-                  <Link to={`/issues/${issue.id}`} className="block hover:bg-gray-50 transition-colors">
-                    <div className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center truncate">
-                          <p className="text-sm font-medium text-blue-600 truncate mr-3">
-                            #{issue.id}
-                          </p>
-                          <p className="text-base font-semibold text-gray-900 truncate">
-                            {issue.title}
-                          </p>
-                          <span className={cn("ml-3 px-2 inline-flex text-xs leading-5 font-semibold rounded-full", getStatusColor(issue.status))}>
-                            {issue.status}
-                          </span>
-                        </div>
-                        <div className="ml-2 flex-shrink-0 flex">
-                           <span className="text-sm text-gray-500">
-                             {formatDate(issue.submitDate)}
-                           </span>
-                        </div>
-                      </div>
-                      <div className="mt-2 sm:flex sm:justify-between">
-                        <div className="sm:flex">
-                          <p className="flex items-center text-sm text-gray-500 mr-6">
-                            <span className="font-medium mr-1">机型:</span> 
-                            {issue.model?.name || '未知'}
-                          </p>
-                          <p className="flex items-center text-sm text-gray-500 mr-6">
-                             <span className="font-medium mr-1">提交人:</span>
-                             {issue.reporterName}
-                          </p>
-                          {issue.phenomenon && (
-                            <p className="flex items-center text-sm text-gray-500">
-                              <span className="font-medium mr-1">现象:</span>
-                              {issue.phenomenon}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            
-            {/* Pagination */}
-            {totalPages > 1 && (
-               <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                 <div className="flex-1 flex justify-between sm:justify-end">
-                   <button
-                     onClick={() => setPage(p => Math.max(1, p - 1))}
-                     disabled={page === 1}
-                     className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                   >
-                     上一页
-                   </button>
-                   <button
-                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                     disabled={page === totalPages}
-                     className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                   >
-                     下一页
-                   </button>
-                 </div>
-               </div>
-            )}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    状态
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    标题 / 描述
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    机型 / 客户
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    上报人
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    提交时间
+                  </th>
+                  <th scope="col" className="relative px-6 py-3">
+                    <span className="sr-only">操作</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {issues.map((issue) => (
+                  <tr key={issue.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                      #{issue.id}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusColor(issue.status))}>
+                        {issue.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900 line-clamp-1">{issue.title}</div>
+                      <div className="text-sm text-gray-500 line-clamp-1 mt-0.5">{issue.description}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{issue.model?.name || '-'}</div>
+                      <div className="text-xs text-gray-500">{issue.customerName || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {issue.reporterName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(issue.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Link to={`/issues/${issue.id}`} className="text-blue-600 hover:text-blue-900 hover:underline">
+                        查看详情
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
+        
+        {/* Pagination */}
+        <div className="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              上一页
+            </button>
+            <button
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              下一页
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                当前第 <span className="font-medium">{page}</span> 页，共 <span className="font-medium">{totalPages}</span> 页
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="sr-only">Previous</span>
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="sr-only">Next</span>
+                  Next
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
