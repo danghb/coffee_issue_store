@@ -11,6 +11,8 @@ const server = Fastify({
   logger: true
 });
 
+import { issueRoutes } from './routes/issue.routes';
+
 const start = async () => {
   try {
     // 注册插件
@@ -21,9 +23,12 @@ const start = async () => {
     // 配置 multipart 支持大文件上传
     await server.register(multipart, {
       limits: {
-        fileSize: 1024 * 1024 * 1024, // 1GB (无限制的体现)
+        fileSize: 1024 * 1024 * 1024, // 1GB
       }
     });
+
+    // 注册路由
+    await server.register(issueRoutes, { prefix: '/api/issues' });
 
     // 基础健康检查路由
     server.get('/ping', async (request, reply) => {
