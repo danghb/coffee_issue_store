@@ -29,14 +29,6 @@ export default function IssueDetailPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  // 内部字段编辑状态
-  const [editingInternal, setEditingInternal] = useState(false);
-  const [internalForm, setInternalForm] = useState({ severity: '', priority: '', tags: [] as string[] });
-
-  // Basic Info Edit State
-  const [editingBasic, setEditingBasic] = useState(false);
-  const [basicForm, setBasicForm] = useState<Partial<Issue>>({});
-
   // 并案状态
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [isMerging, setIsMerging] = useState(false);
@@ -47,32 +39,6 @@ export default function IssueDetailPage() {
       setLoading(true);
       const data = await issueService.getIssue(issueId);
       setIssue(data);
-
-      let parsedTags: string[] = [];
-      try {
-        parsedTags = data.tags ? JSON.parse(data.tags) : [];
-      } catch (e) {
-        parsedTags = [];
-      }
-
-      setInternalForm({
-        severity: data.severity || 'MEDIUM',
-        priority: data.priority || 'P2',
-        tags: parsedTags
-      });
-      // Init basic form
-      setBasicForm({
-        description: data.description,
-        occurredAt: data.occurredAt,
-        frequency: data.frequency,
-        phenomenon: data.phenomenon,
-        errorCode: data.errorCode,
-        // Add more fields if needed
-        restarted: data.restarted,
-        cleaned: data.cleaned,
-        replacedPart: data.replacedPart,
-        troubleshooting: data.troubleshooting
-      });
     } catch (err) {
       console.error(err);
       setError('无法加载问题详情');
@@ -122,35 +88,16 @@ export default function IssueDetailPage() {
     }
   };
 
-  const handleUpdateInternal = async () => {
-    if (!issue) return;
-    try {
-      setLoading(true);
-      const dataToUpdate = {
-        ...internalForm,
-        tags: JSON.stringify(internalForm.tags)
-      };
-      await issueService.update(issue.id, dataToUpdate);
-      setEditingInternal(false);
-      await loadIssue(issue.id);
-    } catch (err) {
-      alert('更新失败');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleUpdateBasic = async () => {
+  // 单字段更新函数 (用于行内编辑)
+  const handleFieldUpdate = async (field: string, newValue: any) => {
     if (!issue) return;
     try {
-      setLoading(true);
-      await issueService.update(issue.id, basicForm);
-      setEditingBasic(false);
+      await issueService.update(issue.id, { [field]: newValue });
       await loadIssue(issue.id);
     } catch (err) {
-      alert('更新失败');
-    } finally {
-      setLoading(false);
+      console.error('Field update failed:', err);
+      throw err; // Re-throw so EditableField knows update failed
     }
   };
 
@@ -408,22 +355,39 @@ export default function IssueDetailPage() {
               <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                 #{issue.nanoId || issue.id}
               </span>
-              <span className={cn(
-                "px-2.5 py-0.5 rounded-full text-xs font-medium border",
-                issue.status === 'PENDING' ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-                  issue.status === 'IN_PROGRESS' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                    issue.status === 'RESOLVED' ? "bg-green-50 text-green-700 border-green-200" :
-                      "bg-gray-50 text-gray-700 border-gray-200"
-              )}>
-                {issue.status}
-              </span>
+              <EditableField
+                value={issue.status}
+                onSave={(val) => handleFieldUpdate('status', val)}
+                type="select"
+                options={[
+                  { value: 'PENDING', label: '待处理' },
+                  { value: 'IN_PROGRESS', label: '处理中' },
+                  { value: 'RESOLVED', label: '已解决' },
+                  { value: 'CLOSED', label: '已关闭' }
+                ]}
+                renderValue={(val) => (
+                  <span className={cn(
+                    "px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                    val === 'PENDING' ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+                      val === 'IN_PROGRESS' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                        val === 'RESOLVED' ? "bg-green-50 text-green-700 border-green-200" :
+                          "bg-gray-50 text-gray-700 border-gray-200"
+                  )}>
+                    {val === 'PENDING' ? '待处理' : val === 'IN_PROGRESS' ? '处理中' : val === 'RESOLVED' ? '已解决' : '已关闭'}
+                  </span>
+                )}
+              />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mt-2 flex items-center gap-3">
-            {issue.title}
+          <div className="text-2xl font-bold text-gray-900 mt-2 flex items-center gap-3">
+            <EditableField
+              value={issue.title}
+              onSave={(val) => handleFieldUpdate('title', val)}
+              displayClassName="text-2xl font-bold text-gray-900"
+            />
             {getSeverityBadge(issue.severity)}
             {isInternalViewer && getPriorityBadge(issue.priority)}
-          </h1>
+          </div>
           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
             <span className="flex items-center">
               <Calendar className="w-4 h-4 mr-1.5" />
@@ -519,120 +483,66 @@ export default function IssueDetailPage() {
           {/* Internal Fields (Admin Only) */}
           {isInternalViewer && (
             <section className="bg-amber-50 rounded-xl shadow-sm border border-amber-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-amber-100 flex justify-between items-center">
+              <div className="px-6 py-4 border-b border-amber-100">
                 <h3 className="text-base font-semibold text-amber-900 flex items-center">
                   <ShieldAlert className="w-4 h-4 mr-2" />
                   内部管理
                 </h3>
-                {!editingInternal ? (
-                  <button
-                    onClick={() => setEditingInternal(true)}
-                    className="text-sm text-amber-700 hover:text-amber-900 font-medium"
-                  >
-                    编辑属性
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleUpdateInternal}
-                      className="text-sm bg-amber-600 text-white px-3 py-1 rounded hover:bg-amber-700 shadow-sm"
-                    >
-                      保存
-                    </button>
-                    <button
-                      onClick={() => setEditingInternal(false)}
-                      className="text-sm text-gray-600 hover:text-gray-800"
-                    >
-                      取消
-                    </button>
-                  </div>
-                )}
               </div>
               <div className="p-6 grid grid-cols-2 gap-6">
                 <div>
                   <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider block mb-2">
                     严重程度 (公开)
                   </label>
-                  {editingInternal ? (
-                    <select
-                      value={internalForm.severity}
-                      onChange={(e) => setInternalForm(prev => ({ ...prev, severity: e.target.value }))}
-                      className="block w-full rounded-md border-amber-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2"
-                    >
-                      <option value="LOW">🟢 轻微</option>
-                      <option value="MEDIUM">🟡 一般</option>
-                      <option value="HIGH">🟠 严重</option>
-                      <option value="CRITICAL">🔴 紧急</option>
-                    </select>
-                  ) : (
-                    <div className="text-sm text-gray-900">{getSeverityBadge(issue.severity)}</div>
-                  )}
+                  <EditableField
+                    value={issue.severity || 'MEDIUM'}
+                    onSave={(val) => handleFieldUpdate('severity', val)}
+                    type="select"
+                    options={[
+                      { value: 'LOW', label: '🟢 轻微' },
+                      { value: 'MEDIUM', label: '🟡 一般' },
+                      { value: 'HIGH', label: '🟠 严重' },
+                      { value: 'CRITICAL', label: '🔴 紧急' }
+                    ]}
+                    renderValue={(val) => getSeverityBadge(val)}
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider block mb-2 flex items-center">
                     <Flag className="w-3 h-3 mr-1" /> 优先级 (内部)
                   </label>
-                  {editingInternal ? (
-                    <select
-                      value={internalForm.priority}
-                      onChange={(e) => setInternalForm(prev => ({ ...prev, priority: e.target.value }))}
-                      className="block w-full rounded-md border-amber-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2"
-                    >
-                      <option value="P0">P0 - 立即处理</option>
-                      <option value="P1">P1 - 紧急</option>
-                      <option value="P2">P2 - 高</option>
-                      <option value="P3">P3 - 普通</option>
-                    </select>
-                  ) : (
-                    <div className="text-sm text-gray-900">{getPriorityBadge(issue.priority)}</div>
-                  )}
+                  <EditableField
+                    value={issue.priority || 'P2'}
+                    onSave={(val) => handleFieldUpdate('priority', val)}
+                    type="select"
+                    options={[
+                      { value: 'P0', label: 'P0 - 立即处理' },
+                      { value: 'P1', label: 'P1 - 紧急' },
+                      { value: 'P2', label: 'P2 - 高' },
+                      { value: 'P3', label: 'P3 - 普通' }
+                    ]}
+                    renderValue={(val) => getPriorityBadge(val)}
+                  />
                 </div>
 
                 <div className="col-span-2 border-t border-amber-200 pt-4">
                   <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider block mb-2">
                     标签 (Tags)
                   </label>
-                  {editingInternal ? (
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap gap-2">
-                        {internalForm.tags.map(tag => (
-                          <span key={tag} className="inline-flex items-center px-2 py-1 rounded bg-white text-amber-900 text-xs border border-amber-200 shadow-sm">
+                  <div className="flex flex-wrap gap-2">
+                    {issue.tags && (() => {
+                      try {
+                        return JSON.parse(issue.tags).map((tag: string) => (
+                          <span key={tag} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {tag}
-                            <button
-                              onClick={() => setInternalForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))}
-                              className="ml-1.5 text-amber-400 hover:text-amber-700 font-bold leading-none"
-                            >
-                              ×
-                            </button>
                           </span>
-                        ))}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="输入标签按回车添加..."
-                        className="block w-full rounded-md border-amber-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 placeholder-amber-300/70"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const val = e.currentTarget.value.trim();
-                            if (val && !internalForm.tags.includes(val)) {
-                              setInternalForm(prev => ({ ...prev, tags: [...prev.tags, val] }));
-                              e.currentTarget.value = '';
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {issue.tags && JSON.parse(issue.tags).map((tag: string) => (
-                        <span key={tag} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {tag}
-                        </span>
-                      ))}
-                      {(!issue.tags || JSON.parse(issue.tags).length === 0) && <span className="text-sm text-gray-400 italic">无标签</span>}
-                    </div>
-                  )}
+                        ));
+                      } catch {
+                        return null;
+                      }
+                    })()}
+                    {(!issue.tags || !JSON.parse(issue.tags || '[]').length) && <span className="text-sm text-gray-400 italic">无标签</span>}
+                  </div>
                 </div>
 
                 {/* Merge Action (Admin Only) */}
@@ -675,29 +585,6 @@ export default function IssueDetailPage() {
                 <FileText className="w-4 h-4 mr-2 text-blue-500" />
                 问题详情
               </h3>
-              {!editingBasic ? (
-                <button
-                  onClick={() => setEditingBasic(true)}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  编辑
-                </button>
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleUpdateBasic}
-                    className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                  >
-                    保存
-                  </button>
-                  <button
-                    onClick={() => setEditingBasic(false)}
-                    className="text-sm text-gray-600 hover:text-gray-800"
-                  >
-                    取消
-                  </button>
-                </div>
-              )}
             </div>
             <div className="p-6 space-y-6">
               <DescriptionEditor
@@ -710,63 +597,52 @@ export default function IssueDetailPage() {
                 }}
               />
 
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className={cn("bg-gray-50 p-3 rounded-lg border border-gray-100", editingBasic && "bg-white border-gray-300")}>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <span className="text-xs text-gray-500 block mb-1">发生时间</span>
-                  {editingBasic ? (
-                    <input
-                      type="datetime-local"
-                      value={basicForm.occurredAt ? new Date(basicForm.occurredAt).toISOString().slice(0, 16) : ''}
-                      onChange={(e) => setBasicForm(prev => ({ ...prev, occurredAt: e.target.value }))}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1"
-                    />
-                  ) : (
-                    <span className="text-sm font-medium text-gray-900">{formatDate(issue.occurredAt)}</span>
-                  )}
+                  <EditableField
+                    value={issue.occurredAt ? new Date(issue.occurredAt).toISOString().split('T')[0] : ''}
+                    onSave={(val) => handleFieldUpdate('occurredAt', val)}
+                    type="date"
+                    placeholder="-"
+                    displayClassName="text-sm font-medium text-gray-900"
+                  />
                 </div>
-                <div className={cn("bg-gray-50 p-3 rounded-lg border border-gray-100", editingBasic && "bg-white border-gray-300")}>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <span className="text-xs text-gray-500 block mb-1">出现频率</span>
-                  {editingBasic ? (
-                    <select
-                      value={basicForm.frequency || ''}
-                      onChange={(e) => setBasicForm(prev => ({ ...prev, frequency: e.target.value }))}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1"
-                    >
-                      <option value="">请选择</option>
-                      <option value="必现">必现</option>
-                      <option value="高频">高频</option>
-                      <option value="低频">低频</option>
-                      <option value="单次">单次</option>
-                    </select>
-                  ) : (
-                    <span className="text-sm font-medium text-gray-900">{issue.frequency || '-'}</span>
-                  )}
+                  <EditableField
+                    value={issue.frequency || ''}
+                    onSave={(val) => handleFieldUpdate('frequency', val)}
+                    type="select"
+                    options={[
+                      { value: '', label: '请选择' },
+                      { value: '必现', label: '必现' },
+                      { value: '高频', label: '高频' },
+                      { value: '低频', label: '低频' },
+                      { value: '单次', label: '单次' }
+                    ]}
+                    placeholder="-"
+                    displayClassName="text-sm font-medium text-gray-900"
+                  />
                 </div>
-                <div className={cn("bg-gray-50 p-3 rounded-lg border border-gray-100", editingBasic && "bg-white border-gray-300")}>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <span className="text-xs text-gray-500 block mb-1">问题现象</span>
-                  {editingBasic ? (
-                    <input
-                      type="text"
-                      value={basicForm.phenomenon || ''}
-                      onChange={(e) => setBasicForm(prev => ({ ...prev, phenomenon: e.target.value }))}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1"
-                    />
-                  ) : (
-                    <span className="text-sm font-medium text-gray-900">{issue.phenomenon || '-'}</span>
-                  )}
+                  <EditableField
+                    value={issue.phenomenon || ''}
+                    onSave={(val) => handleFieldUpdate('phenomenon', val)}
+                    placeholder="-"
+                    displayClassName="text-sm font-medium text-gray-900"
+                  />
                 </div>
-                <div className={cn("bg-gray-50 p-3 rounded-lg border border-gray-100", editingBasic && "bg-white border-gray-300")}>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <span className="text-xs text-gray-500 block mb-1">错误代码</span>
-                  {editingBasic ? (
-                    <input
-                      type="text"
-                      value={basicForm.errorCode || ''}
-                      onChange={(e) => setBasicForm(prev => ({ ...prev, errorCode: e.target.value }))}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-1"
-                    />
-                  ) : (
-                    <span className="text-sm font-mono text-gray-900">{issue.errorCode || '-'}</span>
-                  )}
+                  <EditableField
+                    value={issue.errorCode || ''}
+                    onSave={(val) => handleFieldUpdate('errorCode', val)}
+                    placeholder="-"
+                    displayClassName="text-sm font-mono text-gray-900"
+                  />
                 </div>
               </div>
             </div>
