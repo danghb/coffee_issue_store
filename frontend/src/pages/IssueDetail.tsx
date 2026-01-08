@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { issueService, authService, type Issue, type Comment } from '../services/api';
-import { Loader2, ArrowLeft, Download, FileText, Image as ImageIcon, Video, Calendar, User, AlertCircle, Wrench, MessageSquare, Send, RefreshCw, ShieldAlert, Flag, CheckCircle2, Pencil, Check, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { issueService, authService, type Issue } from '../services/api';
+import { Loader2, ArrowLeft, Download, FileText, Image as ImageIcon, Video, Calendar, User, AlertCircle, Wrench, MessageSquare, Send, RefreshCw, ShieldAlert, CheckCircle2, Pencil, Check, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { FileUpload } from '../components/Upload';
 import DualModeEditor from '../components/DualModeEditor';
@@ -9,6 +9,7 @@ import { EditableField } from '../components/EditableField';
 import { EditableTags } from '../components/EditableTags';
 import { SeverityBadge, PriorityBadge } from '../components/ui/Badge';
 import { ResolveIssueDialog } from '../components/ResolveIssueDialog';
+import IssueSelector from '../components/IssueSelector';
 
 export default function IssueDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,9 +39,14 @@ export default function IssueDetailPage() {
   // 并案状态
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [isMerging, setIsMerging] = useState(false);
+  const [showIssueSelector, setShowIssueSelector] = useState(false);
 
-  // Timeline collapse state
-  const [showTimeline, setShowTimeline] = useState(false);
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
+
+  // 操作记录折叠状态
+  const [showOperationLog, setShowOperationLog] = useState(false);
 
   // Memoize loadIssue to avoid re-creation if dependencies don't change
   const loadIssue = useCallback(async (issueId: number | string) => {
@@ -171,31 +177,25 @@ export default function IssueDetailPage() {
     }
   };
 
-  const handleMerge = async () => {
-    if (!issue || !mergeTargetId) return;
+  const handleMerge = async (targetId?: number) => {
+    const targetIdToUse = targetId || (mergeTargetId ? parseInt(mergeTargetId, 10) : null);
 
-    const targetId = Number(mergeTargetId);
-    if (isNaN(targetId) || targetId === issue.id) {
-      alert('请输入有效的、不同于当前工单的 ID');
+    if (!targetIdToUse || !issue) return;
+
+    if (!window.confirm(`确认将当前工单 #${issue.id} 并入工单 #${targetIdToUse}?`)) {
       return;
     }
 
-    if (!window.confirm(`确认将当前工单 (#${issue.id}) 并入主工单 (#${targetId}) 吗？\n并案后，当前工单将作为子工单关联。`)) return;
-
     try {
       setIsMerging(true);
-      // Backend expects: parentId, childIds[]. 
-      // We want to merge CURRENT issue INTO target issue.
-      // So parent = targetId, children = [issue.id]
-      await issueService.merge(targetId, [issue.id]);
-      alert('并案成功！');
-      await loadIssue(issue.id);
-    } catch (err) {
-      console.error(err);
-      alert('并案失败，请检查目标 ID 是否存在');
+      await issueService.merge(issue.id, [targetIdToUse]);
+      navigate(`/issues/${targetIdToUse}`);
+    } catch (error: any) {
+      alert(error.message || '并案失败');
     } finally {
       setIsMerging(false);
       setMergeTargetId('');
+      setShowIssueSelector(false);
     }
   };
 
@@ -210,54 +210,42 @@ export default function IssueDetailPage() {
     return <FileText className="w-5 h-5 text-gray-500" />;
   };
 
-  const renderTimeline = () => {
-    // Note: Backend already filters out internal comments if user is not admin.
-    if (!issue?.comments || issue.comments.length === 0) {
-      return <div className="text-gray-500 text-sm text-center py-4">暂无处理记录</div>;
-    }
+  // 渲染操作记录（Admin only）
+  const renderOperationLog = () => {
+    if (!issue?.comments) return null;
+
+    const operationLogs = issue.comments.filter(c => c.type === 'STATUS_CHANGE' || c.type === 'FIELD_CHANGE');
+
+    if (operationLogs.length === 0) return null;
 
     return (
       <div className="flow-root">
         <ul className="-mb-8">
-          {issue.comments.map((comment, commentIdx) => (
+          {operationLogs.map((comment, idx) => (
             <li key={comment.id}>
-              <div className="relative pb-8">
-                {issue.comments && commentIdx !== issue.comments.length - 1 ? (
+              <div className="relative pb-6">
+                {idx !== operationLogs.length - 1 && (
                   <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
-                ) : null}
+                )}
                 <div className="relative flex space-x-3">
                   <div>
                     {comment.type === 'STATUS_CHANGE' ? (
                       <span className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center ring-8 ring-white">
-                        <RefreshCw className="h-4 w-4 text-blue-600" aria-hidden="true" />
-                      </span>
-                    ) : comment.type === 'FIELD_CHANGE' ? (
-                      <span className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center ring-8 ring-white">
-                        <Wrench className="h-4 w-4 text-purple-600" aria-hidden="true" />
+                        <RefreshCw className="h-4 w-4 text-blue-600" />
                       </span>
                     ) : (
-                      <span className={cn(
-                        "h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white",
-                        comment.isInternal ? "bg-yellow-100" : "bg-gray-100"
-                      )}>
-                        {comment.isInternal ? (
-                          <ShieldAlert className="h-4 w-4 text-yellow-600" aria-hidden="true" />
-                        ) : (
-                          <User className="h-4 w-4 text-gray-500" aria-hidden="true" />
-                        )}
+                      <span className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center ring-8 ring-white">
+                        <Pencil className="h-4 w-4 text-purple-600" />
                       </span>
                     )}
                   </div>
                   <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                     <div>
                       <div className="text-sm text-gray-500">
-                        <span className="font-medium text-gray-900 mr-2">
-                          {comment.author}
-                          {comment.isInternal && <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">内部</span>}
-                        </span>
+                        <span className="font-medium text-gray-900 mr-2">{comment.author}</span>
                         {comment.type === 'STATUS_CHANGE' ? (
                           <span>将状态更新为 <span className="font-medium text-blue-600">{comment.newStatus}</span></span>
-                        ) : comment.type === 'FIELD_CHANGE' ? (
+                        ) : (
                           (() => {
                             try {
                               const changeData = JSON.parse(comment.content || '{}');
@@ -274,30 +262,8 @@ export default function IssueDetailPage() {
                               return <span>修改了字段</span>;
                             }
                           })()
-                        ) : (
-                          <div className="text-sm text-gray-800">
-                            <DualModeEditor value={comment.content || ''} onChange={() => { }} editable={false} />
-                          </div>
                         )}
                       </div>
-
-                      {/* Comment Attachments */}
-                      {comment.attachments && comment.attachments.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {comment.attachments.map(file => (
-                            <a
-                              key={file.id}
-                              href={`/api/uploads/files/${file.path}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center px-2.5 py-1.5 border border-gray-200 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-                            >
-                              {getFileIcon(file.mimeType)}
-                              <span className="ml-2 truncate max-w-[150px]">{file.filename}</span>
-                            </a>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <div className="text-right text-sm whitespace-nowrap text-gray-500">
                       <time dateTime={comment.createdAt}>{formatDate(comment.createdAt)}</time>
@@ -309,6 +275,155 @@ export default function IssueDetailPage() {
           ))}
         </ul>
       </div>
+    );
+  };
+
+  const renderTimeline = () => {
+    if (!issue?.comments || issue.comments.length === 0) {
+      return <div className="text-gray-500 text-sm text-center py-4">暂无评论</div>;
+    }
+
+    // 只显示用户评论（MESSAGE和SYSTEM）
+    const userComments = issue.comments.filter(c => c.type === 'MESSAGE' || c.type === 'SYSTEM');
+
+    if (userComments.length === 0) {
+      return <div className="text-gray-500 text-sm text-center py-4">暂无评论</div>;
+    }
+
+    // 分页计算
+    const totalPages = Math.ceil(userComments.length / pageSize);
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const paginatedComments = userComments.slice(startIdx, endIdx);
+
+    return (
+      <>
+        <div className="flow-root">
+          <ul className="-mb-8">
+            {paginatedComments.map((comment, commentIdx) => (
+              <li key={comment.id}>
+                <div className="relative pb-8">
+                  {commentIdx !== paginatedComments.length - 1 ? (
+                    <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
+                  ) : null}
+                  <div className="relative flex space-x-3">
+                    <div>
+                      <span className={cn(
+                        "h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white",
+                        comment.isInternal ? "bg-yellow-100" : "bg-gray-100"
+                      )}>
+                        {comment.isInternal ? (
+                          <ShieldAlert className="h-4 w-4 text-yellow-600" aria-hidden="true" />
+                        ) : (
+                          <User className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                        )}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                      <div>
+                        <div className="text-sm text-gray-500">
+                          <span className="font-medium text-gray-900 mr-2">
+                            {comment.author}
+                            {comment.isInternal && <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">内部</span>}
+                          </span>
+                          <div className="text-sm text-gray-800">
+                            <DualModeEditor value={comment.content || ''} onChange={() => { }} editable={false} />
+                          </div>
+                        </div>
+
+                        {/* Comment Attachments */}
+                        {comment.attachments && comment.attachments.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {comment.attachments.map(file => (
+                              <a
+                                key={file.id}
+                                href={`/api/uploads/files/${file.path}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center px-2.5 py-1.5 border border-gray-200 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                              >
+                                {getFileIcon(file.mimeType)}
+                                <span className="ml-2 truncate max-w-[150px]">{file.filename}</span>
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right text-sm whitespace-nowrap text-gray-500">
+                        <time dateTime={comment.createdAt}>{formatDate(comment.createdAt)}</time>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* 分页控件 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-0 mt-6">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                上一页
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                下一页
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  显示 <span className="font-medium">{startIdx + 1}</span> 到 <span className="font-medium">{Math.min(endIdx, userComments.length)}</span>，
+                  共 <span className="font-medium">{userComments.length}</span> 条评论
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={cn(
+                        "relative inline-flex items-center px-4 py-2 text-sm font-semibold focus:z-20",
+                        page === currentPage
+                          ? "z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                          : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                      )}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Next</span>
+                    <ArrowLeft className="h-5 w-5 rotate-180" aria-hidden="true" />
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   };
 
@@ -522,97 +637,6 @@ export default function IssueDetailPage() {
             </div>
           )}
 
-          {/* Internal Fields (Admin Only) */}
-          {isInternalViewer && (
-            <section className="bg-amber-50 rounded-xl shadow-sm border border-amber-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-amber-100">
-                <h3 className="text-base font-semibold text-amber-900 flex items-center">
-                  <ShieldAlert className="w-4 h-4 mr-2" />
-                  内部管理
-                </h3>
-              </div>
-              <div className="p-6 grid grid-cols-2 gap-6">
-                <div>
-                  <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider block mb-2">
-                    严重程度 (公开)
-                  </label>
-                  <EditableField
-                    value={issue.severity || 'MEDIUM'}
-                    onSave={(val) => handleFieldUpdate('severity', val)}
-                    type="select"
-                    options={[
-                      { value: 1, label: '🟢 轻微' },
-                      { value: 2, label: '🟡 一般' },
-                      { value: 3, label: '🟠 严重' },
-                      { value: 4, label: '🔴 紧急' }
-                    ]}
-                    renderValue={(val) => <SeverityBadge severity={val} />}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider block mb-2 flex items-center">
-                    <Flag className="w-3 h-3 mr-1" /> 优先级 (内部)
-                  </label>
-                  <EditableField
-                    value={issue.priority || 'P2'}
-                    onSave={(val) => handleFieldUpdate('priority', val)}
-                    type="select"
-                    options={[
-                      { value: 'P0', label: 'P0 - 立即处理' },
-                      { value: 'P1', label: 'P1 - 紧急' },
-                      { value: 'P2', label: 'P2 - 高' },
-                      { value: 'P3', label: 'P3 - 普通' }
-                    ]}
-                    renderValue={(val) => <PriorityBadge priority={val} />}
-                  />
-                </div>
-
-                <div className="col-span-2 border-t border-amber-200 pt-4">
-                  <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider block mb-2">
-                    标签 (Tags)
-                  </label>
-                  <EditableTags
-                    value={issue.tags || '[]'}
-                    onSave={async (val) => {
-                      await issueService.update(issue.id, { tags: val });
-                      await loadIssue(issue.id);
-                    }}
-                  />
-                </div>
-
-                {/* Merge Action (Admin Only) */}
-              </div> {/* End of p-6 grid */}
-
-              {/* Merge Action (Admin Only) */}
-              {!issue.parent && (
-                <div className="px-6 py-4 border-t border-amber-200">
-                  <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider block mb-2">
-                    并案处理 (将此工单并入...)
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="输入主工单 ID"
-                      className="block w-full rounded-md border-amber-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 bg-white"
-                      value={mergeTargetId}
-                      onChange={(e) => setMergeTargetId(e.target.value.replace(/\D/g, ''))}
-                    />
-                    <button
-                      onClick={handleMerge}
-                      disabled={isMerging || !mergeTargetId}
-                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none disabled:opacity-50 shadow-sm"
-                    >
-                      {isMerging ? <Loader2 className="w-4 h-4 animate-spin" /> : '并入'}
-                    </button>
-                  </div>
-                  <p className="text-xs text-amber-600 mt-1">
-                    注意：并案后，本工单将作为子工单，状态追踪将引导至主工单。
-                  </p>
-                </div>
-              )}
-            </section>
-          )}
-
           {/* Description Card */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
@@ -728,46 +752,6 @@ export default function IssueDetailPage() {
             </div>
           </section>
 
-          {/* Troubleshooting Card */}
-          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-              <h3 className="text-base font-semibold text-gray-900 flex items-center">
-                <Wrench className="w-4 h-4 mr-2 text-purple-500" />
-                排查记录
-              </h3>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className={cn("w-2 h-2 rounded-full mr-3", issue.restarted ? "bg-green-500" : "bg-gray-300")} />
-                  <span className="text-sm font-medium text-gray-700">尝试重启</span>
-                  <span className="ml-auto text-sm text-gray-900">{issue.restarted ? '是' : '否'}</span>
-                </div>
-                <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className={cn("w-2 h-2 rounded-full mr-3", issue.cleaned ? "bg-green-500" : "bg-gray-300")} />
-                  <span className="text-sm font-medium text-gray-700">尝试清洁</span>
-                  <span className="ml-auto text-sm text-gray-900">{issue.cleaned ? '是' : '否'}</span>
-                </div>
-              </div>
-
-              {(issue.replacedPart || issue.troubleshooting) && (
-                <div className="space-y-4">
-                  {issue.replacedPart && (
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">更换配件</span>
-                      <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">{issue.replacedPart}</p>
-                    </div>
-                  )}
-                  {issue.troubleshooting && (
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">其他排查步骤</span>
-                      <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100">{issue.troubleshooting}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
 
           {/* Attachments Card */}
           {issue.attachments && issue.attachments.length > 0 && (
@@ -805,24 +789,18 @@ export default function IssueDetailPage() {
             </section>
           )}
 
+
           {/* Comments / Timeline */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center cursor-pointer" onClick={() => setShowTimeline(!showTimeline)}>
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
               <h3 className="text-base font-semibold text-gray-900 flex items-center">
                 <MessageSquare className="w-4 h-4 mr-2 text-green-500" />
-                处理记录 ({issue?.comments?.length || 0})
+                处理记录
               </h3>
-              <button
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {showTimeline ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </button>
             </div>
-            {showTimeline && (
-              <div className="p-6">
-                {renderTimeline()}
-              </div>
-            )}
+            <div className="p-6">
+              {renderTimeline()}
+            </div>
 
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
               <form onSubmit={handleAddComment}>
@@ -893,6 +871,29 @@ export default function IssueDetailPage() {
               </form>
             </div>
           </section>
+
+          {/* Operation Log (Admin Only) */}
+          {isInternalViewer && renderOperationLog() && (
+            <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div
+                className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+                onClick={() => setShowOperationLog(!showOperationLog)}
+              >
+                <h3 className="text-base font-semibold text-gray-900 flex items-center">
+                  <RefreshCw className="w-4 h-4 mr-2 text-blue-500" />
+                  操作记录
+                </h3>
+                <button className="text-gray-400 hover:text-gray-600">
+                  {showOperationLog ? '收起' : '展开'}
+                </button>
+              </div>
+              {showOperationLog && (
+                <div className="p-6">
+                  {renderOperationLog()}
+                </div>
+              )}
+            </section>
+          )}
         </div>
 
         {/* Right Column: Sidebar Info */}
@@ -980,8 +981,122 @@ export default function IssueDetailPage() {
             </div>
           </section>
 
+          {/* Troubleshooting Card */}
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center">
+                <Wrench className="w-3 h-3 mr-1.5" />
+                排查记录
+              </h3>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <span className="text-xs text-gray-600">尝试重启</span>
+                <span className={cn("text-xs font-medium", issue.restarted ? "text-green-600" : "text-gray-400")}>
+                  {issue.restarted ? '是' : '否'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <span className="text-xs text-gray-600">尝试清洁</span>
+                <span className={cn("text-xs font-medium", issue.cleaned ? "text-green-600" : "text-gray-400")}>
+                  {issue.cleaned ? '是' : '否'}
+                </span>
+              </div>
+              {issue.replacedPart && (
+                <div className="pt-2 border-t border-gray-200">
+                  <span className="text-xs text-gray-500 block mb-1">更换配件</span>
+                  <p className="text-xs text-gray-900">{issue.replacedPart}</p>
+                </div>
+              )}
+              {issue.troubleshooting && (
+                <div className="pt-2 border-t border-gray-200">
+                  <span className="text-xs text-gray-500 block mb-1">排查步骤</span>
+                  <p className="text-xs text-gray-900">{issue.troubleshooting}</p>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* Custom Data Card */}
           {renderCustomData()}
+
+          {/* Internal Management Card (Admin Only) */}
+          {isInternalViewer && (
+            <section className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
+              <div className="px-5 py-3 border-b border-blue-100 bg-blue-50/30">
+                <h3 className="text-xs font-semibold text-blue-900 uppercase tracking-wider flex items-center">
+                  <ShieldAlert className="w-3 h-3 mr-1.5" />
+                  内部管理
+                </h3>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* Severity */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-2">
+                    严重程度
+                  </label>
+                  <EditableField
+                    value={issue.severity || 'MEDIUM'}
+                    onSave={(val) => handleFieldUpdate('severity', val)}
+                    type="select"
+                    options={[
+                      { value: 1, label: '🟢 轻微' },
+                      { value: 2, label: '🟡 一般' },
+                      { value: 3, label: '🟠 严重' },
+                      { value: 4, label: '🔴 紧急' }
+                    ]}
+                    renderValue={(val) => <SeverityBadge severity={val} />}
+                  />
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-2">
+                    目标日期
+                  </label>
+                  <EditableField
+                    value={issue.targetDate ? new Date(issue.targetDate).toISOString().split('T')[0] : ''}
+                    onSave={(val) => handleFieldUpdate('targetDate', val)}
+                    type="date"
+                    placeholder="-"
+                    displayClassName="text-sm text-gray-900"
+                  />
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-2">
+                    标签
+                  </label>
+                  <EditableTags
+                    value={issue.tags || '[]'}
+                    onSave={async (val) => {
+                      await issueService.update(issue.id, { tags: val });
+                      await loadIssue(issue.id);
+                    }}
+                  />
+                </div>
+
+                {/* Merge Action */}
+                {!issue.parent && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-2">
+                      并案处理
+                    </label>
+                    <button
+                      onClick={() => setShowIssueSelector(true)}
+                      className="w-full inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none transition-colors"
+                    >
+                      选择主工单并入
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2">
+                      将此工单作为子工单并入另一个主工单
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
         </div>
       </div>
@@ -991,6 +1106,14 @@ export default function IssueDetailPage() {
           currentCategoryId={issue.category?.id}
           onClose={() => setShowResolveDialog(false)}
           onConfirm={handleResolveConfirm}
+        />
+      )}
+
+      {showIssueSelector && (
+        <IssueSelector
+          currentIssueId={issue?.id}
+          onSelect={(targetId) => handleMerge(targetId)}
+          onCancel={() => setShowIssueSelector(false)}
         />
       )}
     </div>
