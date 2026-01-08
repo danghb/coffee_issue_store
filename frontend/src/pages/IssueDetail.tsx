@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { issueService, authService, type Issue, type Comment } from '../services/api';
-import { Loader2, ArrowLeft, Download, FileText, Image as ImageIcon, Video, Calendar, User, Settings, AlertCircle, Wrench, MessageSquare, Send, RefreshCw, ShieldAlert, Flag, CheckCircle2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Download, FileText, Image as ImageIcon, Video, Calendar, User, AlertCircle, Wrench, MessageSquare, Send, RefreshCw, ShieldAlert, Flag, CheckCircle2, Pencil, Check, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { FileUpload } from '../components/Upload';
 import DualModeEditor from '../components/DualModeEditor';
 import { EditableField } from '../components/EditableField';
-import { DescriptionEditor } from '../components/DescriptionEditor';
+import { EditableTags } from '../components/EditableTags';
+import { SeverityBadge, PriorityBadge } from '../components/ui/Badge';
+import { ResolveIssueDialog } from '../components/ResolveIssueDialog';
 
 export default function IssueDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,9 +31,16 @@ export default function IssueDetailPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  // 描述编辑状态
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionValue, setDescriptionValue] = useState('');
+
   // 并案状态
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [isMerging, setIsMerging] = useState(false);
+
+  // Timeline collapse state
+  const [showTimeline, setShowTimeline] = useState(false);
 
   // Memoize loadIssue to avoid re-creation if dependencies don't change
   const loadIssue = useCallback(async (issueId: number | string) => {
@@ -101,17 +110,62 @@ export default function IssueDetailPage() {
     }
   };
 
+  // Resolution Dialog
+  const [showResolveDialog, setShowResolveDialog] = useState(false);
+  const [targetStatus, setTargetStatus] = useState('');
+
   const handleStatusChange = async (newStatus: string) => {
     if (!issue) return;
-    if (!window.confirm(`确认将状态变更为 ${newStatus}?`)) return;
+
+    // If resolving or closing, open dialog to confirm category/add comment
+    if (newStatus === 'RESOLVED' || newStatus === 'CLOSED') {
+      setTargetStatus(newStatus);
+      setShowResolveDialog(true);
+      return;
+    }
+
+    // Otherwise standard confirmation (optional)
+    if (newStatus !== 'IN_PROGRESS' && !window.confirm(`确认将状态变更为 ${newStatus}?`)) return;
 
     try {
       setUpdatingStatus(true);
       await issueService.updateStatus(issue.id, newStatus, user?.username || 'Admin');
-      await loadIssue(issue.id); // 刷新
+      await loadIssue(issue.id);
     } catch (err) {
       console.error(err);
       alert('状态更新失败');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleResolveConfirm = async (data: { categoryId: number; comment?: string }) => {
+    if (!issue) return;
+    try {
+      setUpdatingStatus(true);
+
+      // 1. Update Category if changed or not set
+      if (issue.category?.id !== data.categoryId) {
+        // We need to use issueService.update which wraps api.put('/issues/:id', data)
+        // Ensure backend create/update logic handles categoryId (It typically should if api expects Partial<Issue>)
+        await issueService.update(issue.id, { categoryId: data.categoryId });
+      }
+
+      // 2. Add Comment if present
+      if (data.comment?.trim()) {
+        const authorName = user ? user.username : 'Admin';
+        await issueService.addComment(issue.id, data.comment, authorName, false, []);
+      }
+
+      // 3. Update Status
+      await issueService.updateStatus(issue.id, targetStatus, user?.username || 'Admin');
+
+      // 4. Reload
+      await loadIssue(issue.id);
+      setShowResolveDialog(false);
+    } catch (err) {
+      console.error(err);
+      alert('操作失败');
     } finally {
       setUpdatingStatus(false);
     }
@@ -145,25 +199,6 @@ export default function IssueDetailPage() {
     }
   };
 
-  const getSeverityBadge = (severity?: string) => {
-    switch (severity) {
-      case 'CRITICAL': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">🔴 紧急</span>;
-      case 'HIGH': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">🟠 严重</span>;
-      case 'LOW': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">🟢 轻微</span>;
-      default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">🟡 一般</span>;
-    }
-  };
-
-  const getPriorityBadge = (priority?: string) => {
-    if (!priority) return <span className="text-gray-400">-</span>;
-    switch (priority) {
-      case 'P0': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">P0</span>;
-      case 'P1': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-500 text-white">P1</span>;
-      case 'P2': return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white">P2</span>;
-      default: return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500 text-white">P3</span>;
-    }
-  };
-
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('zh-CN') + ' ' + new Date(dateString).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -187,7 +222,7 @@ export default function IssueDetailPage() {
           {issue.comments.map((comment, commentIdx) => (
             <li key={comment.id}>
               <div className="relative pb-8">
-                {commentIdx !== issue.comments.length - 1 ? (
+                {issue.comments && commentIdx !== issue.comments.length - 1 ? (
                   <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
                 ) : null}
                 <div className="relative flex space-x-3">
@@ -215,7 +250,7 @@ export default function IssueDetailPage() {
                   </div>
                   <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                     <div>
-                      <p className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500">
                         <span className="font-medium text-gray-900 mr-2">
                           {comment.author}
                           {comment.isInternal && <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">内部</span>}
@@ -244,7 +279,7 @@ export default function IssueDetailPage() {
                             <DualModeEditor value={comment.content || ''} onChange={() => { }} editable={false} />
                           </div>
                         )}
-                      </p>
+                      </div>
 
                       {/* Comment Attachments */}
                       {comment.attachments && comment.attachments.length > 0 && (
@@ -329,20 +364,22 @@ export default function IssueDetailPage() {
 
   return (
     <div className="space-y-6">
-      {showSuccessBanner && (
-        <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg flex items-start">
-          <div className="flex-shrink-0">
-            <CheckCircle2 className="h-5 w-5 text-green-400" />
+      {
+        showSuccessBanner && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg flex items-start">
+            <div className="flex-shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-green-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-green-700">
+                问题提交成功！您的查询编码是：{' '}
+                <span className="font-mono font-bold text-green-800">{submittedNanoId}</span>
+                。您可以在“进度查询”页面凭此编码追踪处理进度。
+              </p>
+            </div>
           </div>
-          <div className="ml-3">
-            <p className="text-sm text-green-700">
-              问题提交成功！您的查询编码是：{' '}
-              <span className="font-mono font-bold text-green-800">{submittedNanoId}</span>
-              。您可以在“进度查询”页面凭此编码追踪处理进度。
-            </p>
-          </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -355,6 +392,11 @@ export default function IssueDetailPage() {
               <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                 #{issue.nanoId || issue.id}
               </span>
+              {issue.category && (
+                <span className="text-sm font-medium text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  {issue.category.name}
+                </span>
+              )}
               <EditableField
                 value={issue.status}
                 onSave={(val) => handleFieldUpdate('status', val)}
@@ -385,8 +427,8 @@ export default function IssueDetailPage() {
               onSave={(val) => handleFieldUpdate('title', val)}
               displayClassName="text-2xl font-bold text-gray-900"
             />
-            {getSeverityBadge(issue.severity)}
-            {isInternalViewer && getPriorityBadge(issue.priority)}
+            <SeverityBadge severity={issue.severity || 'MEDIUM'} />
+            {isInternalViewer && <PriorityBadge priority={issue.priority || 'P2'} />}
           </div>
           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
             <span className="flex items-center">
@@ -499,12 +541,12 @@ export default function IssueDetailPage() {
                     onSave={(val) => handleFieldUpdate('severity', val)}
                     type="select"
                     options={[
-                      { value: 'LOW', label: '🟢 轻微' },
-                      { value: 'MEDIUM', label: '🟡 一般' },
-                      { value: 'HIGH', label: '🟠 严重' },
-                      { value: 'CRITICAL', label: '🔴 紧急' }
+                      { value: 1, label: '🟢 轻微' },
+                      { value: 2, label: '🟡 一般' },
+                      { value: 3, label: '🟠 严重' },
+                      { value: 4, label: '🔴 紧急' }
                     ]}
-                    renderValue={(val) => getSeverityBadge(val)}
+                    renderValue={(val) => <SeverityBadge severity={val} />}
                   />
                 </div>
                 <div>
@@ -521,7 +563,7 @@ export default function IssueDetailPage() {
                       { value: 'P2', label: 'P2 - 高' },
                       { value: 'P3', label: 'P3 - 普通' }
                     ]}
-                    renderValue={(val) => getPriorityBadge(val)}
+                    renderValue={(val) => <PriorityBadge priority={val} />}
                   />
                 </div>
 
@@ -529,20 +571,13 @@ export default function IssueDetailPage() {
                   <label className="text-xs font-semibold text-amber-800 uppercase tracking-wider block mb-2">
                     标签 (Tags)
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {issue.tags && (() => {
-                      try {
-                        return JSON.parse(issue.tags).map((tag: string) => (
-                          <span key={tag} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {tag}
-                          </span>
-                        ));
-                      } catch {
-                        return null;
-                      }
-                    })()}
-                    {(!issue.tags || !JSON.parse(issue.tags || '[]').length) && <span className="text-sm text-gray-400 italic">无标签</span>}
-                  </div>
+                  <EditableTags
+                    value={issue.tags || '[]'}
+                    onSave={async (val) => {
+                      await issueService.update(issue.id, { tags: val });
+                      await loadIssue(issue.id);
+                    }}
+                  />
                 </div>
 
                 {/* Merge Action (Admin Only) */}
@@ -587,16 +622,61 @@ export default function IssueDetailPage() {
               </h3>
             </div>
             <div className="p-6 space-y-6">
-              <DescriptionEditor
-                value={issue.description || ''}
-                onSave={async (val) => {
-                  await issueService.update(issue.id, { description: val });
-                  // 重新加载数据
-                  const data = await issueService.getIssue(issue.id);
-                  setIssue(data);
-                }}
-              />
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
+                  详细描述
+                </label>
 
+                {editingDescription ? (
+                  <div className="space-y-3">
+                    <DualModeEditor
+                      value={descriptionValue}
+                      onChange={setDescriptionValue}
+                      height={300}
+                      editable={true}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setDescriptionValue(issue.description || '');
+                          setEditingDescription(false);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        取消
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (descriptionValue !== issue.description) {
+                            await issueService.update(issue.id, { description: descriptionValue });
+                            await loadIssue(issue.id);
+                          }
+                          setEditingDescription(false);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors"
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        保存
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="group relative cursor-pointer bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-blue-200 transition-colors"
+                    onClick={() => {
+                      setDescriptionValue(issue.description || '');
+                      setEditingDescription(true);
+                    }}
+                  >
+                    <DualModeEditor value={issue.description || ''} onChange={() => { }} editable={false} />
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs text-blue-600 bg-white px-2 py-1 rounded shadow-sm border">
+                      <Pencil className="w-3 h-3" />
+                      点击编辑
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
@@ -727,15 +807,22 @@ export default function IssueDetailPage() {
 
           {/* Comments / Timeline */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center cursor-pointer" onClick={() => setShowTimeline(!showTimeline)}>
               <h3 className="text-base font-semibold text-gray-900 flex items-center">
                 <MessageSquare className="w-4 h-4 mr-2 text-green-500" />
-                处理记录
+                处理记录 ({issue?.comments?.length || 0})
               </h3>
+              <button
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showTimeline ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
             </div>
-            <div className="p-6">
-              {renderTimeline()}
-            </div>
+            {showTimeline && (
+              <div className="p-6">
+                {renderTimeline()}
+              </div>
+            )}
 
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
               <form onSubmit={handleAddComment}>
@@ -898,6 +985,14 @@ export default function IssueDetailPage() {
 
         </div>
       </div>
-    </div >
+      {showResolveDialog && issue && (
+        <ResolveIssueDialog
+          currentStatus={targetStatus}
+          currentCategoryId={issue.category?.id}
+          onClose={() => setShowResolveDialog(false)}
+          onConfirm={handleResolveConfirm}
+        />
+      )}
+    </div>
   );
 }

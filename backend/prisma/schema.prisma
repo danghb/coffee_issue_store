@@ -47,8 +47,10 @@ model Issue {
   description   String
 
   // New Fields
-  severity      String?  // LOW, MEDIUM, HIGH, CRITICAL (Public)
+  severity      Int      @default(2)  // 1: LOW, 2: MEDIUM, 3: HIGH, 4: CRITICAL
   priority      String?  // P0, P1, P2, P3 (Internal Only)
+  categoryId    Int?     // Link to Category
+  category      Category? @relation(fields: [categoryId], references: [id])
 
   environment   String?
   location      String?
@@ -131,4 +133,11 @@ model Comment {
   issue      Issue    @relation(fields: [issueId], references: [id])
   
   attachments Attachment[]
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  issues    Issue[]
 }

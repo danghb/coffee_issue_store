@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { issueService, type Issue, type DeviceModel } from '../services/api';
+import { issueService, authService, type Issue, type DeviceModel } from '../services/api';
 import { useDebounce } from '../lib/hooks';
 import { KanbanBoard } from '../components/KanbanBoard';
-import { Loader2, Plus, Search, FileText, Calendar, AlertCircle, Filter, Download, LayoutDashboard, Settings, Columns } from 'lucide-react';
+import { DateRangeFilter } from '../components/DateRangeFilter';
+import { SeverityBadge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
+import { MultiSelect } from '../components/ui/MultiSelect';
+import MDEditor from "@uiw/react-md-editor";
+import { Loader2, Plus, Search, FileText, AlertCircle, Download, LayoutDashboard, Columns } from 'lucide-react';
+
 import { cn } from '../lib/utils';
 
 export default function IssueListPage() {
@@ -12,14 +17,31 @@ export default function IssueListPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list'); // New
+  const [sortField, setSortField] = useState<'createdAt' | 'priority' | 'severity'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const user = authService.getCurrentUser();
+  const isInternalViewer = user?.role === 'ADMIN' || user?.role === 'DEVELOPER';
 
   // 筛选状态
-  const [statusFilter, setStatusFilter] = useState('');
-  const [modelFilter, setModelFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [modelFilter, setModelFilter] = useState<number[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // Date state initialized with "near month" logic (calculated in filter component or passed as default)
+  // We'll calculate default month range here for initial state
+  const formatDateInput = (date: Date) => date.toISOString().split('T')[0];
+  const getDefaultRange = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(end.getMonth() - 1);
+    return { start: formatDateInput(start), end: formatDateInput(end) };
+  };
+
+  const [startDate, setStartDate] = useState(() => getDefaultRange().start);
+  const [endDate, setEndDate] = useState(() => getDefaultRange().end);
+
   const [models, setModels] = useState<DeviceModel[]>([]);
 
   const debouncedSearchKeyword = useDebounce(searchKeyword, 500);
@@ -31,13 +53,13 @@ export default function IssueListPage() {
   // Clear status filter when switching to Kanban to avoid empty columns
   useEffect(() => {
     if (viewMode === 'kanban') {
-      setStatusFilter('');
+      setStatusFilter([]);
     }
   }, [viewMode]);
 
   useEffect(() => {
     fetchIssues();
-  }, [page, statusFilter, modelFilter, debouncedSearchKeyword, startDate, endDate]);
+  }, [page, statusFilter, modelFilter, debouncedSearchKeyword, startDate, endDate, sortField, sortOrder]);
 
   const loadModels = async () => {
     try {
@@ -54,11 +76,13 @@ export default function IssueListPage() {
       const data = await issueService.getIssues(
         page,
         20,
-        statusFilter || undefined,
+        statusFilter.length > 0 ? statusFilter : undefined,
         debouncedSearchKeyword || undefined,
-        modelFilter || undefined,
+        modelFilter.length > 0 ? modelFilter : undefined,
         startDate || undefined,
-        endDate || undefined
+        endDate || undefined,
+        sortField,
+        sortOrder
       );
       setIssues(data.items);
       setTotalPages(data.meta.totalPages);
@@ -72,16 +96,6 @@ export default function IssueListPage() {
 
   const handleExport = () => {
     window.location.href = '/api/stats/export';
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800';
-      case 'RESOLVED': return 'bg-green-100 text-green-800';
-      case 'CLOSED': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
   };
 
   const formatDate = (dateString?: string) => {
@@ -112,15 +126,13 @@ export default function IssueListPage() {
           <p className="text-sm text-gray-500 mt-1">管理和追踪所有上报的产品问题</p>
         </div>
         <div className="flex space-x-3 w-full sm:w-auto">
-          {/* View Toggle */}
-          <div className="hidden sm:inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+          {/* 视图切换 */}
+          <div className="flex bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setViewMode('list')}
               className={cn(
-                "inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all",
-                viewMode === 'list'
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-900"
+                "p-1.5 rounded-md transition-all",
+                viewMode === 'list' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"
               )}
               title="列表视图"
             >
@@ -129,15 +141,31 @@ export default function IssueListPage() {
             <button
               onClick={() => setViewMode('kanban')}
               className={cn(
-                "inline-flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all",
-                viewMode === 'kanban'
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-900"
+                "p-1.5 rounded-md transition-all",
+                viewMode === 'kanban' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-gray-700"
               )}
               title="看板视图"
             >
               <Columns className="w-4 h-4" />
             </button>
+          </div>
+
+          {/* 排序下拉列表 */}
+          <div className="relative inline-block text-left">
+            <select
+              value={`${sortField}-${sortOrder}`}
+              onChange={(e) => {
+                const [field, order] = e.target.value.split('-');
+                setSortField(field as 'createdAt' | 'priority' | 'severity');
+                setSortOrder(order as 'asc' | 'desc');
+              }}
+              className="pl-3 pr-8 py-2 text-sm border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em` }}
+            >
+              <option value="createdAt-desc">最新提交</option>
+              <option value="priority-asc">优先级 (高 &rarr; 低)</option>
+              <option value="severity-desc">严重程度 (高 &rarr; 低)</option>
+            </select>
           </div>
 
           <button
@@ -176,50 +204,41 @@ export default function IssueListPage() {
             />
           </div>
 
-          <div className="flex gap-2">
-            <input
-              type="date"
-              className="block w-full px-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              placeholder="开始日期"
-            />
-            <span className="self-center text-gray-400">-</span>
-            <input
-              type="date"
-              className="block w-full px-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              placeholder="结束日期"
+
+          <div>
+            <DateRangeFilter
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(start, end) => {
+                setStartDate(start);
+                setEndDate(end);
+              }}
             />
           </div>
 
           {viewMode !== 'kanban' && (
             <div>
-              <select
+              <MultiSelect
+                options={[
+                  { value: 'PENDING', label: '待处理' },
+                  { value: 'IN_PROGRESS', label: '处理中' },
+                  { value: 'RESOLVED', label: '已解决' },
+                  { value: 'CLOSED', label: '已关闭' }
+                ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-gray-50 focus:bg-white transition-colors"
-                title="状态筛选"
-              >
-                <option value="">所有状态</option>
-                <option value="PENDING">待处理</option>
-                <option value="IN_PROGRESS">处理中</option>
-                <option value="RESOLVED">已解决</option>
-                <option value="CLOSED">已关闭</option>
-              </select>
+                onChange={setStatusFilter}
+                placeholder="筛选状态 (可多选)"
+              />
             </div>
           )}
 
           <div>
-            <select
+            <MultiSelect
+              options={models.map(m => ({ value: m.id, label: m.name }))}
               value={modelFilter}
-              onChange={(e) => setModelFilter(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg bg-gray-50 focus:bg-white transition-colors"
-            >
-              <option value="">所有机型</option>
-              {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+              onChange={setModelFilter}
+              placeholder="筛选机型 (可多选)"
+            />
           </div>
         </div>
       </div>
@@ -284,13 +303,46 @@ export default function IssueListPage() {
                       #{issue.id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", getStatusColor(issue.status))}>
-                        {issue.status}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <StatusBadge status={issue.status} />
+                        {issue.category && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {issue.category.name}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900 line-clamp-1">{issue.title}</div>
-                      <div className="text-sm text-gray-500 line-clamp-1 mt-0.5">{issue.description}</div>
+                      <div className="text-sm font-medium text-gray-900 line-clamp-1 mb-1">{issue.title}</div>
+                      <div className="text-sm text-gray-500 mb-2 max-h-[3em] overflow-hidden relative">
+                        <div data-color-mode="light">
+                          <MDEditor.Markdown
+                            source={issue.description || ''}
+                            style={{
+                              backgroundColor: 'transparent',
+                              color: 'inherit',
+                              fontSize: '0.875rem'
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <SeverityBadge severity={issue.severity || 'MEDIUM'} className="scale-90 origin-left" />
+                        {isInternalViewer && <PriorityBadge priority={issue.priority || 'P2'} className="scale-90 origin-left" />}
+                        {issue.tags && (() => {
+                          try {
+                            const tags = JSON.parse(issue.tags);
+                            if (Array.isArray(tags) && tags.length > 0) {
+                              return tags.map((tag: string) => (
+                                <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                  {tag}
+                                </span>
+                              ));
+                            }
+                          } catch { }
+                          return null;
+                        })()}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{issue.model?.name || '-'}</div>

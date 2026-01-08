@@ -7,7 +7,7 @@ interface EditableFieldProps {
     onSave: (newValue: string) => Promise<void>;
     label?: string;
     type?: 'text' | 'select' | 'textarea' | 'date';
-    options?: { value: string; label: string }[];
+    options?: { value: string | number; label: string }[];
     className?: string;
     displayClassName?: string;
     placeholder?: string;

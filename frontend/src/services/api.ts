@@ -17,6 +17,11 @@ export interface DeviceModel {
   isEnabled: boolean; // 新增字段
 }
 
+export interface Category {
+  id: number;
+  name: string;
+}
+
 export interface Attachment {
   id: number;
   filename: string;
@@ -54,6 +59,7 @@ export interface Issue {
   id: number;
   nanoId: string; // New
   // --- 基本信息 ---
+  category?: Category; // New
   submitDate: string;
   reporterName: string;
   contact?: string;
@@ -68,7 +74,7 @@ export interface Issue {
   // --- 问题描述 ---
   title: string;
   description: string;
-  severity?: string; // New
+  severity?: number; // Int 1-4
   priority?: string; // New (Internal)
   occurredAt?: string;
   frequency?: string;
@@ -112,6 +118,7 @@ export interface CreateIssueData {
   submitDate?: string;
   reporterName: string;
   modelId: number;
+  categoryId?: number; // New
   severity?: string; // New
   // ... 其他字段 ...
   [key: string]: any; // 允许动态字段
@@ -151,10 +158,26 @@ export const settingsService = {
   deleteField: async (id: number) => {
     await api.delete(`/settings/fields/${id}`);
   },
-  // 管理员更新 Issue
   update: async (id: number, data: any) => {
     const response = await api.put<Issue>(`/issues/${id}`, data);
     return response.data;
+  },
+
+  // 分类管理
+  getCategories: async () => {
+    const response = await api.get<Category[]>('/categories');
+    return response.data;
+  },
+  createCategory: async (name: string) => {
+    const response = await api.post<Category>('/categories', { name });
+    return response.data;
+  },
+  updateCategory: async (id: number, name: string) => {
+    const response = await api.put<Category>(`/categories/${id}`, { name });
+    return response.data;
+  },
+  deleteCategory: async (id: number) => {
+    await api.delete(`/categories/${id}`);
   }
 };
 
@@ -177,6 +200,7 @@ export interface DashboardStats {
   };
   byModel: { name: string; value: number }[];
   byCustomer: { name: string; value: number }[];
+  byCategory: { name: string; value: number }[]; // New
   trend: { date: string; count: number }[];
 }
 
@@ -254,14 +278,27 @@ export const issueService = {
   getIssues: async (
     page = 1,
     limit = 20,
-    status?: string,
+    status?: string[],
     search?: string,
-    modelId?: string,
+    modelId?: number[],
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    sortBy?: string,
+    sortOrder?: 'asc' | 'desc'
   ) => {
-    const params = { page, limit, status, search, modelId, startDate, endDate };
-    const response = await api.get<PaginatedResponse<Issue>>('/issues', { params });
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    if (status && status.length > 0) params.append('status', status.join(','));
+    if (search) params.append('search', search);
+    if (modelId && modelId.length > 0) params.append('modelId', modelId.join(','));
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (sortBy) params.append('sortBy', sortBy);
+    if (sortOrder) params.append('sortOrder', sortOrder);
+
+    const response = await api.get<PaginatedResponse<Issue>>(`/issues?${params}`);
     return response.data;
   },
 

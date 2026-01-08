@@ -1,22 +1,14 @@
 import { useState, useEffect } from 'react';
-import { issueService, settingsService, type DeviceModel, type CreateIssueData, type FormField } from '../services/api';
-import { cn } from '../lib/utils';
-import { Loader2, CheckCircle2, AlertCircle, Calendar, Info, Settings, Wrench, FileImage, ClipboardList } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { issueService, settingsService, type DeviceModel, type CreateIssueData, type FormField, type Category } from '../services/api';
+import { AlertCircle, Info, FileImage, Settings, Wrench, ClipboardList, Loader2 } from 'lucide-react';
 import { FileUpload } from '../components/Upload';
 import DualModeEditor from '../components/DualModeEditor';
-import { useNavigate } from 'react-router-dom';
-
-// 表单分块配置
-const SECTIONS = [
-  { id: 'basic', title: '基本信息', icon: Info },
-  { id: 'detail', title: '问题描述', icon: FileImage },
-  { id: 'env', title: '环境信息', icon: Settings },
-  { id: 'custom', title: '附加信息', icon: ClipboardList },
-  { id: 'troubleshoot', title: '初步排查', icon: Wrench },
-];
+import { cn } from '../lib/utils';
 
 export default function SubmitIssuePage() {
   const [models, setModels] = useState<DeviceModel[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]); // New
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -30,6 +22,7 @@ export default function SubmitIssuePage() {
     submitDate: new Date().toISOString().split('T')[0],
     reporterName: '',
     modelId: undefined,
+    categoryId: undefined, // New
     description: '', // Initialize description for RichTextEditor
     // ...
     attachmentIds: []
@@ -45,12 +38,14 @@ export default function SubmitIssuePage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [modelsData, fieldsData] = await Promise.all([
+      const [modelsData, fieldsData, categoriesData] = await Promise.all([
         issueService.getModels(),
-        settingsService.getFields()
+        settingsService.getFields(),
+        settingsService.getCategories() // Fixed
       ]);
       setModels(modelsData);
       setCustomFields(fieldsData);
+      setCategories(categoriesData); // New
     } catch (err) {
       console.error(err);
       setError('无法加载基础数据，请稍后重试');
@@ -104,6 +99,7 @@ export default function SubmitIssuePage() {
         submitDate: new Date().toISOString().split('T')[0],
         reporterName: '',
         modelId: undefined,
+        categoryId: undefined,
         title: '',
         description: '',
         attachmentIds: []
@@ -396,6 +392,39 @@ export default function SubmitIssuePage() {
                     <option value="HIGH">🟠 严重 (无法使用)</option>
                     <option value="CRITICAL">🔴 紧急 (安全隐患/着火)</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    问题分类 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      name="categoryId"
+                      required
+                      value={formData.categoryId || ''}
+                      onChange={(e) => {
+                        if (e.target.value === 'NEW') {
+                          const name = prompt('请输入新分类名称:');
+                          if (name) {
+                            settingsService.createCategory(name).then(newCat => {
+                              setCategories(prev => [...prev, newCat]);
+                              setFormData(prev => ({ ...prev, categoryId: newCat.id }));
+                            });
+                          }
+                        } else {
+                          handleChange(e);
+                        }
+                      }}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
+                    >
+                      <option value="">请选择分类</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                      <option value="NEW" className="font-bold text-blue-600">+ 新增分类...</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>

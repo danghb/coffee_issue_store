@@ -46,11 +46,13 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                     source={value}
                     style={{ padding: 0, backgroundColor: 'transparent' }}
                     components={{
-                        code: ({ children = [], className, ...props }) => {
-                            if (typeof children === 'string' && className === 'language-mermaid') {
-                                return <Mermaid code={children} />;
+                        code: (props) => {
+                            const { children, className, ...rest } = props;
+                            if (className?.includes('language-mermaid')) {
+                                const codeText = Array.isArray(children) ? children.join('') : String(children);
+                                return <Mermaid code={codeText} />;
                             }
-                            return <code className={className} {...props}>{children}</code>;
+                            return <code className={className} {...rest}>{children}</code>;
                         }
                     }}
                 />
@@ -93,11 +95,13 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                                 source={source}
                                 style={{ padding: 15 }}
                                 components={{
-                                    code: ({ children = [], className, ...props }) => {
-                                        if (typeof children === 'string' && className === 'language-mermaid') {
-                                            return <Mermaid code={children} />;
+                                    code: (props) => {
+                                        const { children, className, ...rest } = props;
+                                        if (className?.includes('language-mermaid')) {
+                                            const codeText = Array.isArray(children) ? children.join('') : String(children);
+                                            return <Mermaid code={codeText} />;
                                         }
-                                        return <code className={className} {...props}>{children}</code>;
+                                        return <code className={className} {...rest}>{children}</code>;
                                     }
                                 }}
                             />

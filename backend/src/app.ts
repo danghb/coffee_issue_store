@@ -17,18 +17,19 @@ import { uploadRoutes } from './routes/upload.routes';
 import { statsRoutes } from './routes/stats.routes';
 import { settingsRoutes } from './routes/settings.routes';
 import { authRoutes } from './routes/auth.routes';
+import { categoryRoutes } from './routes/category.routes';
 import { ipWhitelistMiddleware } from './middleware/ip.middleware';
 
 const start = async () => {
   try {
     // 注册插件
-    await server.register(cors, { 
+    await server.register(cors, {
       origin: process.env.CORS_ORIGIN || '*' // 生产环境应设为前端域名
     });
-    
+
     // IP Restriction Middleware
     server.addHook('onRequest', ipWhitelistMiddleware);
-    
+
     // ... multipart and static plugins ...
     await server.register(multipart, {
       limits: {
@@ -47,6 +48,7 @@ const start = async () => {
     await server.register(uploadRoutes, { prefix: '/api/uploads' });
     await server.register(statsRoutes, { prefix: '/api/stats' });
     await server.register(settingsRoutes, { prefix: '/api/settings' });
+    await server.register(categoryRoutes, { prefix: '/api/categories' });
 
     // 基础健康检查路由
     server.get('/ping', async (request, reply) => {
@@ -55,7 +57,7 @@ const start = async () => {
 
     const port = parseInt(process.env.PORT || '3000');
     const host = '0.0.0.0';
-    
+
     await server.listen({ port, host });
     console.log(`Server listening on http://localhost:${port}`);
   } catch (err) {

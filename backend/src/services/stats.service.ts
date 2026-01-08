@@ -8,7 +8,7 @@ export const statsService = {
     const totalIssues = await prisma.issue.count();
     const pendingIssues = await prisma.issue.count({ where: { status: IssueStatus.PENDING } });
     const resolvedIssues = await prisma.issue.count({ where: { status: IssueStatus.RESOLVED } });
-    
+
     // 今日新增
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -23,7 +23,7 @@ export const statsService = {
       orderBy: { _count: { id: 'desc' } },
       take: 5
     });
-    
+
     // 获取机型名称
     const modelStats = await Promise.all(issuesByModel.map(async (item) => {
       const model = await prisma.deviceModel.findUnique({ where: { id: item.modelId } });
@@ -67,13 +67,29 @@ export const statsService = {
       const d = new Date(sevenDaysAgo);
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
-      
-      const count = recentIssues.filter(issue => 
+
+      const count = recentIssues.filter(issue =>
         issue.createdAt.toISOString().startsWith(dateStr)
       ).length;
 
       trendStats.push({ date: dateStr, count });
     }
+
+    // 5. 按分类统计
+    const issuesByCategory = await prisma.issue.groupBy({
+      by: ['categoryId'],
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } }
+    });
+
+    const categoryStats = await Promise.all(issuesByCategory.map(async (item) => {
+      if (!item.categoryId) return null;
+      const cat = await prisma.category.findUnique({ where: { id: item.categoryId } });
+      return {
+        name: cat?.name || 'Unknown',
+        value: item._count.id
+      };
+    }));
 
     return {
       overview: {
@@ -84,6 +100,7 @@ export const statsService = {
       },
       byModel: modelStats,
       byCustomer: customerStats,
+      byCategory: categoryStats.filter(Boolean), // New
       trend: trendStats
     };
   }

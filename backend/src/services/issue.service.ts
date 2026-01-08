@@ -6,7 +6,8 @@ interface CreateIssueInput {
   description: string;
   modelId: number;
   reporterName: string;
-  severity?: string; // New
+  severity?: number; // Int 1-4
+  categoryId?: number; // New
   customData?: any; // New
   tags?: string[]; // New: Array of strings
   targetDate?: string; // New
@@ -112,7 +113,8 @@ export const issueService = {
 
 
         // New Fields
-        severity: data.severity || 'MEDIUM',
+        severity: data.severity !== undefined ? Number(data.severity) : 2, // Default to MEDIUM (2)
+        categoryId: data.categoryId !== undefined ? Number(data.categoryId) : undefined, // Link Category
         tags: data.tags ? JSON.stringify(data.tags) : undefined, // Store as JSON string
         targetDate: parseDate(data.targetDate),
 
@@ -136,14 +138,26 @@ export const issueService = {
   async findAll(
     page = 1,
     limit = 20,
-    status?: IssueStatus,
+    status?: IssueStatus[],
     search?: string,
-    modelId?: number,
+    modelId?: number[],
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    sortBy?: 'createdAt' | 'priority' | 'severity',
+    sortOrder?: 'asc' | 'desc'
   ) {
     const skip = (page - 1) * limit;
     const take = limit === -1 ? undefined : limit; // -1 代表全部
+
+    // Default Sort
+    const orderBy: any = {};
+    if (sortBy === 'priority') {
+      orderBy.priority = sortOrder || 'asc'; // P0 < P1, so asc = High(P0) -> Low(P3)
+    } else if (sortBy === 'severity') {
+      orderBy.severity = sortOrder || 'desc'; // 4(Critical) > 1(Low). DESC = High(4) to Low(1). Correct.
+    } else {
+      orderBy.createdAt = sortOrder || 'desc';
+    }
 
     // 构建时间范围查询
     let dateFilter: any = undefined;
@@ -179,8 +193,8 @@ export const issueService = {
 
     const where = {
       AND: [
-        status ? { status } : {},
-        modelId ? { modelId } : {},
+        status && status.length > 0 ? { status: { in: status } } : {},
+        modelId && modelId.length > 0 ? { modelId: { in: modelId } } : {},
         dateFilter ? { submitDate: dateFilter } : {}, // 假设按照提交时间筛选
         searchFilter ? searchFilter : {}
       ]
@@ -190,11 +204,12 @@ export const issueService = {
       prisma.issue.count({ where }),
       prisma.issue.findMany({
         where,
-        skip: limit === -1 ? undefined : skip,
+        skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: {
-          model: true,
+          model: true, // Include Model info
+          category: true, // New: Include Category info
           _count: {
             select: { attachments: true, comments: true }
           }
@@ -223,6 +238,7 @@ export const issueService = {
       where: where as any, // Prisma types tricky with union
       include: {
         model: true,
+        category: true, // New
         attachments: true,
         comments: {
           orderBy: { createdAt: 'asc' },
@@ -362,6 +378,9 @@ export const issueService = {
         where: { id },
         data: {
           ...data,
+          severity: data.severity !== undefined ? Number(data.severity) : undefined,
+          modelId: data.modelId !== undefined ? Number(data.modelId) : undefined,
+          categoryId: data.categoryId !== undefined ? Number(data.categoryId) : undefined,
           updatedAt: new Date()
         }
       });
@@ -387,5 +406,7 @@ export const issueService = {
 
       return updatedIssue;
     });
-  }
+  },
+
+
 };
