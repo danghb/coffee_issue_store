@@ -309,14 +309,83 @@ export const issueService = {
     });
   },
 
-  // 管理员更新 Issue (包括优先级、严重程度)
-  async update(id: number, data: any) {
-    return prisma.issue.update({
-      where: { id },
-      data: {
-        ...data,
-        updatedAt: new Date()
+  // 管理员更新 Issue (包括优先级、严重程度，以及所有其他字段)
+  // 带变更审计日志
+  async update(id: number, data: any, author: string = 'Admin') {
+    // 1. 获取当前Issue
+    const currentIssue = await prisma.issue.findUnique({ where: { id } });
+    if (!currentIssue) throw new Error('Issue not found');
+
+    // 2. 定义需要追踪变更的字段及其显示名称
+    const trackableFields: Record<string, string> = {
+      title: '标题',
+      description: '详细描述',
+      status: '状态',
+      priority: '优先级',
+      severity: '严重程度',
+      assignee: '分配人',
+      modelId: '产品型号',
+      occurredAt: '发生时间',
+      frequency: '出现频率',
+      tags: '标签',
+      targetDate: '目标日期',
+      customerName: '客户名称',
+      contact: '联系方式',
+      phenomenon: '问题现象',
+      errorCode: '错误代码',
+      environment: '环境',
+      location: '地点',
+    };
+
+    // 3. 检测变更
+    const changes: { field: string; fieldName: string; oldValue: any; newValue: any }[] = [];
+
+    for (const [field, fieldName] of Object.entries(trackableFields)) {
+      if (data[field] !== undefined) {
+        const oldValue = (currentIssue as any)[field];
+        const newValue = data[field];
+
+        // 比较值（处理日期和JSON字符串）
+        const oldStr = oldValue instanceof Date ? oldValue.toISOString() : String(oldValue ?? '');
+        const newStr = newValue instanceof Date ? newValue.toISOString() : String(newValue ?? '');
+
+        if (oldStr !== newStr) {
+          changes.push({ field, fieldName, oldValue: oldStr, newValue: newStr });
+        }
       }
+    }
+
+    // 4. 事务：更新Issue + 记录所有变更
+    return prisma.$transaction(async (tx) => {
+      // 更新Issue
+      const updatedIssue = await tx.issue.update({
+        where: { id },
+        data: {
+          ...data,
+          updatedAt: new Date()
+        }
+      });
+
+      // 记录每个变更
+      for (const change of changes) {
+        await tx.comment.create({
+          data: {
+            issueId: id,
+            type: 'FIELD_CHANGE',
+            author,
+            authorType: 'ADMIN',
+            isInternal: true, // 变更日志只对管理员可见
+            content: JSON.stringify({
+              field: change.field,
+              fieldName: change.fieldName,
+              oldValue: change.oldValue,
+              newValue: change.newValue
+            })
+          }
+        });
+      }
+
+      return updatedIssue;
     });
   }
 };

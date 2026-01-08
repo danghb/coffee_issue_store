@@ -10,6 +10,7 @@ interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   editable?: boolean;
+  bordered?: boolean;
 }
 
 const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
@@ -88,7 +89,7 @@ const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
 };
 
 const RichTextEditor = React.forwardRef<HTMLDivElement, RichTextEditorProps>(
-  ({ value, onChange, editable = true }, ref) => {
+  ({ value, onChange, editable = true, bordered = true }, ref) => {
     const editor = useEditor({
       extensions: [
         StarterKit.configure({
@@ -109,26 +110,30 @@ const RichTextEditor = React.forwardRef<HTMLDivElement, RichTextEditorProps>(
     });
 
     useEffect(() => {
-      // Update editor content only if value changes externally and editor is not focused
       if (editor && editor.getHTML() !== value && !editor.isFocused) {
-        editor.commands.setContent(value, false);
+        editor.commands.setContent(value, { emitUpdate: false });
       }
     }, [value, editor]);
-
 
     return (
       <div
         className={cn(
-          'min-h-[150px] rounded-lg border bg-background shadow-sm',
-          !editable && 'border-none shadow-none'
+          'bg-background h-full flex flex-col cursor-text',
+          bordered && 'rounded-lg border shadow-sm',
+          !editable && 'border-none shadow-none cursor-default'
         )}
         ref={ref}
+        onClick={() => {
+          if (editable && editor && !editor.isFocused) {
+            editor.commands.focus('end');
+          }
+        }}
       >
         {editable && <TiptapToolbar editor={editor} />}
-        <div className="relative">
+        <div className="relative flex-1 overflow-y-auto">
           <EditorContent
             editor={editor}
-            className={cn('p-4 min-h-[100px]', !editable && 'p-0')}
+            className={cn('p-4 min-h-[100px] h-full', !editable && 'p-0')}
           />
         </div>
       </div>

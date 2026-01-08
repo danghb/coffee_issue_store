@@ -3,7 +3,7 @@ import { issueService, settingsService, type DeviceModel, type CreateIssueData, 
 import { cn } from '../lib/utils';
 import { Loader2, CheckCircle2, AlertCircle, Calendar, Info, Settings, Wrench, FileImage, ClipboardList } from 'lucide-react';
 import { FileUpload } from '../components/Upload';
-import RichTextEditor from '../components/RichTextEditor';
+import DualModeEditor from '../components/DualModeEditor';
 import { useNavigate } from 'react-router-dom';
 
 // 表单分块配置
@@ -34,7 +34,7 @@ export default function SubmitIssuePage() {
     // ...
     attachmentIds: []
   });
-  
+
   // 动态字段状态
   const [customData, setCustomData] = useState<Record<string, any>>({});
 
@@ -77,15 +77,15 @@ export default function SubmitIssuePage() {
     try {
       setSubmitting(true);
       setError(null);
-      
+
       const payload: CreateIssueData = {
         ...formData as CreateIssueData,
         modelId: Number(formData.modelId),
         customData: JSON.stringify(customData)
       };
-      
+
       const result = await issueService.createIssue(payload);
-      
+
       // Save to local history
       const historyItem = {
         id: result.id,
@@ -120,13 +120,13 @@ export default function SubmitIssuePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
   };
-  
+
   const handleCustomFieldChange = (label: string, value: any) => {
     setCustomData(prev => ({
       ...prev,
@@ -380,7 +380,7 @@ export default function SubmitIssuePage() {
                     placeholder="简要描述问题 (例如: 开机无反应)"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     严重程度
@@ -397,18 +397,19 @@ export default function SubmitIssuePage() {
                     <option value="CRITICAL">🔴 紧急 (安全隐患/着火)</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">详细描述 <span className="text-red-500">*</span></label>
-                  <RichTextEditor
+                  <DualModeEditor
                     value={formData.description || ''}
-                    onChange={(html) => setFormData(prev => ({ ...prev, description: html }))}
-                    editable={true}
+                    onChange={(val) => setFormData(prev => ({ ...prev, description: val }))}
+                    height={300}
                   />
+                  <p className="mt-1 text-xs text-gray-500">支持 Markdown 语法与 Mermaid 流程图</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                   <div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">发生时间</label>
                     <input
                       type="datetime-local"
@@ -418,7 +419,7 @@ export default function SubmitIssuePage() {
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
                     />
                   </div>
-                   <div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">出现频率</label>
                     <select
                       name="frequency"
@@ -456,11 +457,11 @@ export default function SubmitIssuePage() {
                     />
                   </div>
                 </div>
-                
+
                 {/* File Upload */}
                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">图片/视频附件</label>
-                   <FileUpload onUploadComplete={handleUploadComplete} />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">图片/视频附件</label>
+                  <FileUpload onUploadComplete={handleUploadComplete} />
                 </div>
               </div>
             </section>
@@ -535,31 +536,31 @@ export default function SubmitIssuePage() {
                 </h3>
               </div>
               <div className="p-6 space-y-6">
-                 <div className="flex gap-8">
-                   <label className="flex items-center space-x-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 w-full sm:w-auto">
-                     <input
-                       type="checkbox"
-                       name="restarted"
-                       checked={formData.restarted}
-                       onChange={handleChange}
-                       className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
-                     />
-                     <span className="text-sm text-gray-900 font-medium">尝试重启</span>
-                   </label>
-                   
-                   <label className="flex items-center space-x-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 w-full sm:w-auto">
-                     <input
-                       type="checkbox"
-                       name="cleaned"
-                       checked={formData.cleaned}
-                       onChange={handleChange}
-                       className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
-                     />
-                     <span className="text-sm text-gray-900 font-medium">尝试清洁</span>
-                   </label>
-                 </div>
-                 
-                 <div>
+                <div className="flex gap-8">
+                  <label className="flex items-center space-x-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 w-full sm:w-auto">
+                    <input
+                      type="checkbox"
+                      name="restarted"
+                      checked={formData.restarted}
+                      onChange={handleChange}
+                      className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                    />
+                    <span className="text-sm text-gray-900 font-medium">尝试重启</span>
+                  </label>
+
+                  <label className="flex items-center space-x-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 w-full sm:w-auto">
+                    <input
+                      type="checkbox"
+                      name="cleaned"
+                      checked={formData.cleaned}
+                      onChange={handleChange}
+                      className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                    />
+                    <span className="text-sm text-gray-900 font-medium">尝试清洁</span>
+                  </label>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">更换配件</label>
                   <input
                     type="text"
@@ -570,7 +571,7 @@ export default function SubmitIssuePage() {
                     placeholder="如有更换，请填写配件名称"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">其他排查步骤</label>
                   <textarea

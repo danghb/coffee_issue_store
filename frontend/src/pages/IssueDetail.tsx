@@ -4,7 +4,9 @@ import { issueService, authService, type Issue, type Comment } from '../services
 import { Loader2, ArrowLeft, Download, FileText, Image as ImageIcon, Video, Calendar, User, Settings, AlertCircle, Wrench, MessageSquare, Send, RefreshCw, ShieldAlert, Flag, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { FileUpload } from '../components/Upload';
-import RichTextEditor from '../components/RichTextEditor';
+import DualModeEditor from '../components/DualModeEditor';
+import { EditableField } from '../components/EditableField';
+import { DescriptionEditor } from '../components/DescriptionEditor';
 
 export default function IssueDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -247,6 +249,10 @@ export default function IssueDetailPage() {
                       <span className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center ring-8 ring-white">
                         <RefreshCw className="h-4 w-4 text-blue-600" aria-hidden="true" />
                       </span>
+                    ) : comment.type === 'FIELD_CHANGE' ? (
+                      <span className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center ring-8 ring-white">
+                        <Wrench className="h-4 w-4 text-purple-600" aria-hidden="true" />
+                      </span>
                     ) : (
                       <span className={cn(
                         "h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white",
@@ -269,8 +275,27 @@ export default function IssueDetailPage() {
                         </span>
                         {comment.type === 'STATUS_CHANGE' ? (
                           <span>将状态更新为 <span className="font-medium text-blue-600">{comment.newStatus}</span></span>
+                        ) : comment.type === 'FIELD_CHANGE' ? (
+                          (() => {
+                            try {
+                              const changeData = JSON.parse(comment.content || '{}');
+                              return (
+                                <span className="text-purple-700">
+                                  修改了 <span className="font-medium">{changeData.fieldName}</span>
+                                  <span className="text-gray-400 mx-1">:</span>
+                                  <span className="line-through text-gray-400">{changeData.oldValue || '(空)'}</span>
+                                  <span className="mx-1">→</span>
+                                  <span className="font-medium text-purple-600">{changeData.newValue}</span>
+                                </span>
+                              );
+                            } catch {
+                              return <span>修改了字段</span>;
+                            }
+                          })()
                         ) : (
-                          <div className="text-gray-800 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: comment.content || '' }} />
+                          <div className="text-sm text-gray-800">
+                            <DualModeEditor value={comment.content || ''} onChange={() => { }} editable={false} />
+                          </div>
                         )}
                       </p>
 
@@ -675,18 +700,15 @@ export default function IssueDetailPage() {
               )}
             </div>
             <div className="p-6 space-y-6">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">详细描述</label>
-                {editingBasic ? (
-                  <RichTextEditor
-                    value={basicForm.description || ''}
-                    onChange={(html) => setBasicForm(prev => ({ ...prev, description: html }))}
-                    editable={true}
-                  />
-                ) : (
-                  <div className="text-gray-900 whitespace-pre-wrap text-sm leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-100" dangerouslySetInnerHTML={{ __html: issue.description }} />
-                )}
-              </div>
+              <DescriptionEditor
+                value={issue.description || ''}
+                onSave={async (val) => {
+                  await issueService.update(issue.id, { description: val });
+                  // 重新加载数据
+                  const data = await issueService.getIssue(issue.id);
+                  setIssue(data);
+                }}
+              />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className={cn("bg-gray-50 p-3 rounded-lg border border-gray-100", editingBasic && "bg-white border-gray-300")}>
@@ -857,9 +879,10 @@ export default function IssueDetailPage() {
                   )}
                   <div>
                     <label htmlFor="comment" className="sr-only">添加回复</label>
-                    <RichTextEditor
+                    <DualModeEditor
                       value={commentContent}
                       onChange={setCommentContent}
+                      height={200}
                       editable={true}
                     />
                   </div>

@@ -82,6 +82,38 @@ export default function Layout({ children }: LayoutProps) {
             </button>
           </div>
 
+          {/* User Profile Area - Moved to Top */}
+          <div className="border-b border-gray-100 p-4 flex-shrink-0">
+            {user ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center overflow-hidden">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-600 font-bold text-xs ring-2 ring-white shadow-sm">
+                    {user.username.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="ml-3 truncate">
+                    <p className="text-sm font-medium text-gray-700 truncate">{user.name || user.username}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.role}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors flex-shrink-0"
+                  title="退出登录"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="flex items-center justify-center w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                管理员登录
+              </Link>
+            )}
+          </div>
+
           {/* Navigation Links */}
           <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
             {filteredNavigation.map((item) => {
@@ -103,38 +135,6 @@ export default function Layout({ children }: LayoutProps) {
               );
             })}
           </nav>
-
-          {/* User Profile / Bottom Area */}
-          <div className="border-t border-gray-100 p-4 flex-shrink-0">
-            {user ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center overflow-hidden">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-600 font-bold text-xs">
-                    {user.username.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div className="ml-3 truncate">
-                    <p className="text-sm font-medium text-gray-700 truncate">{user.name || user.username}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.role}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-1.5 text-gray-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors flex-shrink-0"
-                  title="退出登录"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
-              </div>
-            ) : (
-              <Link
-                to="/login"
-                className="flex items-center justify-center w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                管理员登录
-              </Link>
-            )}
-          </div>
         </div>
       </div>
 

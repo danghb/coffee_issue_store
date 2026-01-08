@@ -146,8 +146,8 @@ export default function DashboardPage() {
               <TrendingUp className="w-5 h-5 mr-2 text-blue-500" />
               最近 7 天趋势
             </h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64" style={{ minHeight: '256px' }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <LineChart data={stats.trend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
@@ -166,8 +166,8 @@ export default function DashboardPage() {
               <PieChartIcon className="w-5 h-5 mr-2 text-purple-500" />
               机型故障分布 (Top 5)
             </h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64" style={{ minHeight: '256px' }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <PieChart>
                   <Pie
                     data={stats.byModel}
@@ -198,8 +198,8 @@ export default function DashboardPage() {
               <Users className="w-5 h-5 mr-2 text-orange-500" />
               客户报修排行 (Top 10)
             </h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64" style={{ minHeight: '256px' }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={stats.byCustomer} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
