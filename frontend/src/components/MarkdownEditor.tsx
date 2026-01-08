@@ -1,6 +1,7 @@
-import React, { useCallback, useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import MDEditor from "@uiw/react-md-editor";
 import mermaid from "mermaid";
+import { Plus, Minus, RefreshCw, X } from 'lucide-react';
 
 interface MarkdownEditorProps {
     value: string;
@@ -27,6 +28,12 @@ const extractTextFromChildren = (children: any): string => {
 const Mermaid = ({ code }: { code: string }) => {
     const [svg, setSvg] = useState<string>("");
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Zoom and Pan state
+    const [scale, setScale] = useState(1);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef({ x: 0, y: 0 });
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -37,43 +44,125 @@ const Mermaid = ({ code }: { code: string }) => {
         }
     }, [code]);
 
+    // Reset zoom/pan when modal opens
+    useEffect(() => {
+        if (isModalOpen) {
+            setScale(1);
+            setPosition({ x: 0, y: 0 });
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        } else {
+            // Restore body scroll
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isModalOpen]);
+
+    const handleWheel = (e: React.WheelEvent) => {
+        e.stopPropagation();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        setScale(s => Math.min(Math.max(0.5, s + delta), 5));
+    };
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+        dragStartRef.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        setPosition({
+            x: e.clientX - dragStartRef.current.x,
+            y: e.clientY - dragStartRef.current.y
+        });
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
     return (
         <>
             <div
                 ref={ref}
                 dangerouslySetInnerHTML={{ __html: svg }}
                 onClick={() => setIsModalOpen(true)}
-                className="cursor-pointer hover:opacity-80 transition-opacity border border-gray-200 rounded p-2 inline-block max-w-full overflow-auto"
+                className="cursor-pointer hover:opacity-80 transition-opacity border border-gray-200 rounded p-2 inline-block max-w-full overflow-auto bg-white"
                 title="点击查看大图"
                 style={{ maxWidth: '100%' }}
             />
 
-            {/* 放大模态框 */}
+            {/* Interactive Modal */}
             {isModalOpen && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-8"
+                    className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
                     style={{ backgroundColor: 'rgba(255, 255, 255, 0.95)' }}
                     onClick={() => setIsModalOpen(false)}
                 >
-                    <div
-                        className="bg-white rounded-lg shadow-2xl p-6 border border-gray-300 overflow-auto"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ maxWidth: '95vw', maxHeight: '90vh' }}
-                    >
-                        <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-900">流程图</h3>
+                    {/* Controls */}
+                    <div className="absolute top-4 right-4 z-50 flex gap-2">
+                        <div className="bg-white/90 backdrop-blur shadow-sm border border-gray-200 rounded-lg p-2 flex gap-2">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.2, 5)); }}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-700"
+                                title="放大"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(0.5, s - 0.2)); }}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-700"
+                                title="缩小"
+                            >
+                                <Minus className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setScale(1); setPosition({ x: 0, y: 0 }); }}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-700"
+                                title="重置"
+                            >
+                                <RefreshCw className="w-5 h-5" />
+                            </button>
+                            <div className="w-px bg-gray-200 mx-1"></div>
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="text-gray-500 hover:text-gray-700 text-2xl leading-none px-2 hover:bg-gray-100 rounded"
+                                className="p-1 hover:bg-red-50 hover:text-red-600 rounded text-gray-500"
+                                title="关闭"
                             >
-                                ×
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
+                    </div>
+
+                    {/* Viewport */}
+                    <div
+                        className="w-full h-full cursor-move flex items-center justify-center"
+                        onWheel={handleWheel}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div
                             dangerouslySetInnerHTML={{ __html: svg }}
-                            className="flex justify-center items-center"
-                            style={{ transform: 'scale(2)', transformOrigin: 'center', padding: '3rem' }}
+                            style={{
+                                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                                transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+                                transformOrigin: 'center',
+                                cursor: isDragging ? 'grabbing' : 'grab',
+                                userSelect: 'none' // Prevent text selection while dragging
+                            }}
                         />
+                    </div>
+
+                    {/* Help Text */}
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/80 backdrop-blur px-4 py-2 rounded-full border border-gray-200 text-sm text-gray-500 pointer-events-none">
+                        滚轮缩放 · 拖拽移动
                     </div>
                 </div>
             )}
