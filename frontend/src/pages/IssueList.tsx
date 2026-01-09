@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { issueService, authService, type Issue, type DeviceModel } from '../services/api';
 import { useDebounce } from '../lib/hooks';
 import { KanbanBoard } from '../components/KanbanBoard';
@@ -117,6 +117,8 @@ export default function IssueListPage() {
       fetchIssues();
     }
   };
+
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-6">
@@ -291,14 +293,15 @@ export default function IssueListPage() {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     提交时间
                   </th>
-                  <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">操作</span>
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {issues.map((issue) => (
-                  <tr key={issue.id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={issue.id}
+                    onClick={() => navigate(`/issues/${issue.id}`)}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                       #{issue.id}
                     </td>
@@ -353,11 +356,6 @@ export default function IssueListPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(issue.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link to={`/issues/${issue.id}`} className="text-blue-600 hover:text-blue-900 hover:underline">
-                        查看详情
-                      </Link>
                     </td>
                   </tr>
                 ))}

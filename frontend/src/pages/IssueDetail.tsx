@@ -1,14 +1,16 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { issueService, authService, type Issue } from '../services/api';
-import { Loader2, ArrowLeft, Download, FileText, Image as ImageIcon, Video, Calendar, User, AlertCircle, Wrench, MessageSquare, Send, RefreshCw, ShieldAlert, CheckCircle2, Pencil, Check, X } from 'lucide-react';
+import { Loader2, ArrowLeft, Send, CheckCircle, AlertCircle, Clock, Archive, MoreHorizontal, Paperclip, X, Download, ImageIcon, FileText, Video, Trash2, Edit2, Save, XCircle, Plus, Minus, RefreshCw, ShieldAlert, Calendar, User, Wrench, Pencil, Link2, MessageSquare, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { FileUpload } from '../components/Upload';
 import DualModeEditor from '../components/DualModeEditor';
 import { EditableField } from '../components/EditableField';
 import { EditableTags } from '../components/EditableTags';
-import { SeverityBadge, PriorityBadge } from '../components/ui/Badge';
+import { SeverityBadge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
 import { ResolveIssueDialog } from '../components/ResolveIssueDialog';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import IssueSelector from '../components/IssueSelector';
 
 export default function IssueDetailPage() {
@@ -38,8 +40,10 @@ export default function IssueDetailPage() {
 
   // 并案状态
   const [mergeTargetId, setMergeTargetId] = useState('');
-  const [isMerging, setIsMerging] = useState(false);
   const [showIssueSelector, setShowIssueSelector] = useState(false);
+  // New state for Confirm Dialog
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
+  const [pendingMergeTarget, setPendingMergeTarget] = useState<{ id: number, title?: string } | null>(null);
 
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,6 +51,8 @@ export default function IssueDetailPage() {
 
   // 操作记录折叠状态
   const [showOperationLog, setShowOperationLog] = useState(false);
+  // 附件折叠状态
+  const [showAttachments, setShowAttachments] = useState(false);
 
   // Memoize loadIssue to avoid re-creation if dependencies don't change
   const loadIssue = useCallback(async (issueId: number | string) => {
@@ -177,25 +183,26 @@ export default function IssueDetailPage() {
     }
   };
 
-  const handleMerge = async (targetId?: number) => {
-    const targetIdToUse = targetId || (mergeTargetId ? parseInt(mergeTargetId, 10) : null);
+  // Step 1: User selects a target issue -> Opens Confirmation Dialog
+  const handleMergeSelect = (targetId: number) => {
+    setPendingMergeTarget({ id: targetId });
+    setShowIssueSelector(false); // Close selector
+    setShowMergeDialog(true);    // Open confirmation
+  };
 
-    if (!targetIdToUse || !issue) return;
-
-    if (!window.confirm(`确认将当前工单 #${issue.id} 并入工单 #${targetIdToUse}?`)) {
-      return;
-    }
+  // Step 2: User confirms -> Execute API call
+  const executeMerge = async () => {
+    if (!pendingMergeTarget || !issue) return;
 
     try {
-      setIsMerging(true);
-      await issueService.merge(issue.id, [targetIdToUse]);
-      navigate(`/issues/${targetIdToUse}`);
+      // API expects: merge(parentId, childIds[])
+      await issueService.merge(pendingMergeTarget.id, [issue.id]);
+      navigate(`/issues/${pendingMergeTarget.id}`);
     } catch (error: any) {
       alert(error.message || '并案失败');
     } finally {
-      setIsMerging(false);
-      setMergeTargetId('');
-      setShowIssueSelector(false);
+      setShowMergeDialog(false);
+      setPendingMergeTarget(null);
     }
   };
 
@@ -337,7 +344,7 @@ export default function IssueDetailPage() {
                             {comment.attachments.map(file => (
                               <a
                                 key={file.id}
-                                href={`/api/uploads/files/${file.path}`}
+                                href={`/ api / uploads / files / ${file.path} `}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center px-2.5 py-1.5 border border-gray-200 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
@@ -589,53 +596,36 @@ export default function IssueDetailPage() {
         </div>
       </div>
 
+
+      {/* Merged Banner (For Child Issues) */}
+      {issue.parent && (
+        <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Link2 className="h-5 w-5 text-blue-500" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-blue-700">
+                此工单已并入主工单
+                <Link to={`/issues/${issue.parent.id}`} className="font-bold underline ml-1 hover:text-blue-900">
+                  #{issue.parent.id} {issue.parent.title}
+                </Link>
+              </p>
+            </div>
+          </div>
+          <Link to={`/issues/${issue.parent.id}`} className="text-sm font-medium text-blue-600 hover:text-blue-500 whitespace-nowrap">
+            前往查看 &rarr;
+          </Link>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Main Info */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* Merge Alert (If Child) */}
-          {issue.parent && (
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg flex items-start">
-              <div className="flex-shrink-0">
-                <RefreshCw className="h-5 w-5 text-blue-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-blue-700">
-                  此工单已并入主工单{' '}
-                  <Link to={`/issues/${issue.parent.id}`} className="font-medium underline hover:text-blue-600">
-                    #{issue.parent.id} {issue.parent.title}
-                  </Link>
-                  {' '}进行统一处理。
-                </p>
-              </div>
-            </div>
-          )}
 
-          {/* Children List (If Parent) */}
-          {issue.children && issue.children.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="text-base font-semibold text-gray-900 flex items-center">
-                  <RefreshCw className="w-4 h-4 mr-2 text-blue-500" />
-                  关联的子工单 ({issue.children.length})
-                </h3>
-              </div>
-              <ul className="divide-y divide-gray-100">
-                {issue.children.map(child => (
-                  <li key={child.id} className="px-6 py-3 hover:bg-gray-50">
-                    <Link to={`/issues/${child.id}`} className="flex justify-between items-center group">
-                      <span className="text-sm text-gray-700 group-hover:text-blue-600">
-                        #{child.id} - {child.title}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {new Date(child.submitDate).toLocaleDateString()}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+
+
 
           {/* Description Card */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -753,41 +743,7 @@ export default function IssueDetailPage() {
           </section>
 
 
-          {/* Attachments Card */}
-          {issue.attachments && issue.attachments.length > 0 && (
-            <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="text-base font-semibold text-gray-900 flex items-center">
-                  <ImageIcon className="w-4 h-4 mr-2 text-indigo-500" />
-                  附件 ({issue.attachments.length})
-                </h3>
-              </div>
-              <ul className="divide-y divide-gray-100">
-                {issue.attachments.map((file) => (
-                  <li key={file.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center overflow-hidden">
-                      <div className="p-2 bg-gray-100 rounded-lg mr-3">
-                        {getFileIcon(file.mimeType)}
-                      </div>
-                      <div className="truncate">
-                        <p className="text-sm font-medium text-gray-900 truncate">{file.filename}</p>
-                        <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
-                      </div>
-                    </div>
-                    <a
-                      href={`/api/uploads/files/${file.path}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ml-4 flex-shrink-0 text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                    >
-                      <Download className="w-4 h-4 mr-1.5" />
-                      下载
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+
 
 
           {/* Comments / Timeline */}
@@ -872,6 +828,50 @@ export default function IssueDetailPage() {
             </div>
           </section>
 
+          {/* Attachments Card (Collapsible) */}
+          {issue.attachments && issue.attachments.length > 0 && (
+            <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div
+                className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center cursor-pointer"
+                onClick={() => setShowAttachments(!showAttachments)}
+              >
+                <h3 className="text-base font-semibold text-gray-900 flex items-center">
+                  <ImageIcon className="w-4 h-4 mr-2 text-indigo-500" />
+                  附件 ({issue.attachments.length})
+                </h3>
+                <button className="text-gray-400 hover:text-gray-600">
+                  {showAttachments ? '收起' : '展开'}
+                </button>
+              </div>
+              {showAttachments && (
+                <ul className="divide-y divide-gray-100">
+                  {issue.attachments.map((file) => (
+                    <li key={file.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center overflow-hidden">
+                        <div className="p-2 bg-gray-100 rounded-lg mr-3">
+                          {getFileIcon(file.mimeType)}
+                        </div>
+                        <div className="truncate">
+                          <p className="text-sm font-medium text-gray-900 truncate">{file.filename}</p>
+                          <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                      <a
+                        href={`/api/uploads/files/${file.path}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-4 flex-shrink-0 text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        <Download className="w-4 h-4 mr-1.5" />
+                        下载
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
           {/* Operation Log (Admin Only) */}
           {isInternalViewer && renderOperationLog() && (
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -898,6 +898,38 @@ export default function IssueDetailPage() {
 
         {/* Right Column: Sidebar Info */}
         <div className="space-y-6">
+
+          {/* Child Issues List (For Parent Issues) */}
+          {issue.children && issue.children.length > 0 && (
+            <section className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
+              <div className="px-5 py-3 border-b border-blue-100 bg-blue-50/30">
+                <h3 className="text-xs font-semibold text-blue-900 uppercase tracking-wider flex items-center">
+                  <Link2 className="w-3 h-3 mr-1.5" />
+                  关联子工单 ({issue.children.length})
+                </h3>
+              </div>
+              <ul className="divide-y divide-gray-100">
+                {issue.children.map(child => (
+                  <li key={child.id} className="p-4 hover:bg-gray-50 transition-colors">
+                    <Link to={`/issues/${child.id}`} className="block group">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-mono text-gray-500 group-hover:text-blue-600">#{child.id}</span>
+                        <StatusBadge status={child.status} className="scale-75 origin-top-right" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                        {child.title}
+                      </p>
+                      <div className="mt-2 flex items-center text-xs text-gray-500">
+                        <span>{child.reporterName}</span>
+                        <span className="mx-1">·</span>
+                        <span>{new Date(child.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Device Info Card */}
           <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -1022,8 +1054,8 @@ export default function IssueDetailPage() {
 
           {/* Internal Management Card (Admin Only) */}
           {isInternalViewer && (
-            <section className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
-              <div className="px-5 py-3 border-b border-blue-100 bg-blue-50/30">
+            <section className="bg-white rounded-xl shadow-sm border border-blue-100">
+              <div className="px-5 py-3 border-b border-blue-100 bg-blue-50/30 rounded-t-xl">
                 <h3 className="text-xs font-semibold text-blue-900 uppercase tracking-wider flex items-center">
                   <ShieldAlert className="w-3 h-3 mr-1.5" />
                   内部管理
@@ -1077,14 +1109,19 @@ export default function IssueDetailPage() {
                   />
                 </div>
 
-                {/* Merge Action */}
-                {!issue.parent && (
-                  <div className="pt-4 border-t border-gray-200">
+                {/* Merge Action - Only allow if not a child (no parent) AND not a parent (no children) - limit depth to 1 */}
+                {!issue.parent && (!issue.children || issue.children.length === 0) && (
+                  <div className="pt-4 border-t border-gray-200 relative">
                     <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-2">
                       并案处理
                     </label>
                     <button
-                      onClick={() => setShowIssueSelector(true)}
+                      type="button"
+                      onClick={(e) => {
+                        console.log('Merge button clicked');
+                        e.preventDefault();
+                        setShowIssueSelector(prev => !prev);
+                      }}
                       className="w-full inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none transition-colors"
                     >
                       选择主工单并入
@@ -1092,6 +1129,13 @@ export default function IssueDetailPage() {
                     <p className="text-xs text-gray-500 mt-2">
                       将此工单作为子工单并入另一个主工单
                     </p>
+                    {showIssueSelector && (
+                      <IssueSelector
+                        currentIssueId={issue?.id}
+                        onSelect={handleMergeSelect}
+                        onCancel={() => setShowIssueSelector(false)}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -1109,13 +1153,16 @@ export default function IssueDetailPage() {
         />
       )}
 
-      {showIssueSelector && (
-        <IssueSelector
-          currentIssueId={issue?.id}
-          onSelect={(targetId) => handleMerge(targetId)}
-          onCancel={() => setShowIssueSelector(false)}
-        />
-      )}
+      {/* Merge Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showMergeDialog}
+        title="确认并案"
+        content={`确定要将当前工单 #${issue?.id} 并入主工单 #${pendingMergeTarget?.id} 吗？\n\n并案后，当前工单将作为子工单，状态变更等操作将由主工单统一管理。`}
+        confirmText="确认并入"
+        onClose={() => setShowMergeDialog(false)}
+        onConfirm={executeMerge}
+      />
+
     </div>
   );
 }
