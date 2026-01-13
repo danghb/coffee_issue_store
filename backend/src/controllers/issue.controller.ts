@@ -28,6 +28,7 @@ interface CreateIssueBody {
   cleaned?: boolean;
   replacedPart?: string;
   troubleshooting?: string;
+  remarks?: string;
   attachmentIds?: number[];
 }
 
@@ -315,4 +316,11 @@ export const issueController = {
       return reply.code(500).send({ error: 'Internal Server Error' });
     }
   },
+
+  // 删除问题
+  delete: async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const id = parseInt(request.params.id);
+    await issueService.delete(id);
+    return reply.send({ success: true });
+  }
 };

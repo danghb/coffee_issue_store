@@ -1,7 +1,26 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import MDEditor from "@uiw/react-md-editor";
 import mermaid from "mermaid";
 import { Plus, Minus, RefreshCw, X } from 'lucide-react';
+
+// 图片上传函数
+const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/uploads', {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error('图片上传失败');
+    }
+
+    const data = await response.json();
+    // 返回图片URL
+    return `/api/uploads/files/${data.path}`;
+};
 
 interface MarkdownEditorProps {
     value: string;
@@ -176,6 +195,13 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     height = 400,
     editable = true
 }) => {
+    const valueRef = useRef(value);
+    const onChangeRef = useRef(onChange);
+
+    // 直接在 Render 阶段更新 Ref，避免额外的 Effect 调度
+    valueRef.current = value;
+    onChangeRef.current = onChange;
+
     useEffect(() => {
         mermaid.initialize({
             startOnLoad: false,
@@ -183,6 +209,41 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             securityLevel: 'loose'
         });
     }, []);
+
+    // 使用 useCallback 创建稳定的粘贴处理函数
+    const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        if (!editable) return;
+
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        // 查找粘贴的图片
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type.indexOf('image') === 0) {
+                e.preventDefault();
+
+                const file = item.getAsFile();
+                if (file) {
+                    try {
+                        // 上传图片
+                        const url = await uploadImage(file);
+
+                        // 使用 ref 获取最新的 value 和 onChange
+                        const imageMd = `\n![图片](${url})\n`;
+                        // 确保使用最新的 onChange 和 value
+                        if (onChangeRef.current && valueRef.current !== undefined) {
+                            onChangeRef.current(valueRef.current + imageMd);
+                        }
+                    } catch (error) {
+                        console.error('图片上传失败:', error);
+                        alert('图片上传失败，请重试');
+                    }
+                }
+                break;
+            }
+        }
+    }, [editable]); // 只依赖 editable
 
     if (!editable) {
         return (
@@ -207,7 +268,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
     return (
         <div data-color-mode="light" className="markdown-editor-wrapper h-full">
-            <style>{`
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .markdown-editor-wrapper .w-md-editor {
                     border: none !important;
                     box-shadow: none !important;
@@ -227,12 +289,15 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 .markdown-editor-wrapper .w-md-editor-text-input {
                     min-height: 100% !important;
                 }
-            `}</style>
+            `}} />
             <MDEditor
                 value={value}
                 onChange={(val) => onChange(val || "")}
                 height={height}
-                preview="live"
+                preview="edit"
+                textareaProps={{
+                    onPaste: handlePaste
+                }}
                 components={{
                     preview: (source, state, dispatch) => {
                         return (
@@ -258,4 +323,5 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     );
 };
 
-export default MarkdownEditor;
+// 使用 React.memo 优化性能，避免父组件重新渲染时不必要的子组件渲染
+export default React.memo(MarkdownEditor);

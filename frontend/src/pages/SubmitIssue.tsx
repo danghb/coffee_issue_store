@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { issueService, settingsService, type DeviceModel, type CreateIssueData, type FormField, type Category } from '../services/api';
 import { AlertCircle, Info, FileImage, Settings, Wrench, ClipboardList, Loader2 } from 'lucide-react';
 import { FileUpload } from '../components/Upload';
-import DualModeEditor from '../components/DualModeEditor';
+import MarkdownEditor from '../components/MarkdownEditor';
 import { cn } from '../lib/utils';
 
 export default function SubmitIssuePage() {
@@ -256,7 +256,7 @@ export default function SubmitIssuePage() {
               </div>
               <div className="p-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
                     提交人 <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -280,7 +280,7 @@ export default function SubmitIssuePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
                     设备机型 <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -331,23 +331,36 @@ export default function SubmitIssuePage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">固件版本</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CTR版本号</label>
                   <input
                     type="text"
                     name="firmware"
                     value={formData.firmware}
                     onChange={handleChange}
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
+                    placeholder="如: V1.2.3"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">软件版本</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">HMI版本的号</label>
                   <input
                     type="text"
                     name="softwareVer"
                     value={formData.softwareVer}
                     onChange={handleChange}
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
+                    placeholder="如: V2.0.1"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">备注信息</label>
+                  <textarea
+                    name="remarks"
+                    rows={2}
+                    value={formData.remarks || ''}
+                    onChange={handleChange}
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
+                    placeholder="例如: 加装了冰箱、自清洗组件等非标品..."
                   />
                 </div>
               </div>
@@ -363,7 +376,7 @@ export default function SubmitIssuePage() {
               </div>
               <div className="p-6 space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">
                     问题标题 <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -394,45 +407,19 @@ export default function SubmitIssuePage() {
                   </select>
                 </div>
 
+                {/* 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    问题分类 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      name="categoryId"
-                      required
-                      value={formData.categoryId || ''}
-                      onChange={(e) => {
-                        if (e.target.value === 'NEW') {
-                          const name = prompt('请输入新分类名称:');
-                          if (name) {
-                            settingsService.createCategory(name).then(newCat => {
-                              setCategories(prev => [...prev, newCat]);
-                              setFormData(prev => ({ ...prev, categoryId: newCat.id }));
-                            });
-                          }
-                        } else {
-                          handleChange(e);
-                        }
-                      }}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
-                    >
-                      <option value="">请选择分类</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                      <option value="NEW" className="font-bold text-blue-600">+ 新增分类...</option>
-                    </select>
-                  </div>
-                </div>
+                   Category Field Hidden as per user request
+                   Backend defaults to undefined/new, or handled by Admin later
+                </div> 
+                */}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">详细描述 <span className="text-red-500">*</span></label>
-                  <DualModeEditor
+                  <label className="block text-sm font-bold text-gray-700 mb-1">详细描述 <span className="text-red-500">*</span></label>
+                  <MarkdownEditor
                     value={formData.description || ''}
                     onChange={(val) => setFormData(prev => ({ ...prev, description: val }))}
-                    height={300}
+                    height={500}
                   />
                   <p className="mt-1 text-xs text-gray-500">支持 Markdown 语法与 Mermaid 流程图</p>
                 </div>
@@ -463,33 +450,13 @@ export default function SubmitIssuePage() {
                       <option value="单次">单次 (仅出现一次)</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">问题现象</label>
-                    <input
-                      type="text"
-                      name="phenomenon"
-                      value={formData.phenomenon}
-                      onChange={handleChange}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
-                      placeholder="例如: 黑屏, 异响"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">错误代码</label>
-                    <input
-                      type="text"
-                      name="errorCode"
-                      value={formData.errorCode}
-                      onChange={handleChange}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border font-mono"
-                      placeholder="例如: E01"
-                    />
-                  </div>
+
+
                 </div>
 
                 {/* File Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">图片/视频附件</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">图片/视频/日志附件</label>
                   <FileUpload onUploadComplete={handleUploadComplete} />
                 </div>
               </div>
@@ -505,17 +472,15 @@ export default function SubmitIssuePage() {
               </div>
               <div className="p-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">使用环境</label>
-                  <select
-                    name="environment"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">国家或地区</label>
+                  <input
+                    type="text"
+                    name="environment" // Keep backend field name 'environment'
                     value={formData.environment}
                     onChange={handleChange}
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
-                  >
-                    <option value="">请选择</option>
-                    <option value="商用">商用</option>
-                    <option value="家用">家用</option>
-                  </select>
+                    placeholder="例如: 中国大陆, 欧洲..."
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">使用地点</label>
@@ -529,7 +494,7 @@ export default function SubmitIssuePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">水源类型</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">进水方式</label>
                   <select
                     name="waterType"
                     value={formData.waterType}
@@ -537,19 +502,19 @@ export default function SubmitIssuePage() {
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
                   >
                     <option value="">请选择</option>
-                    <option value="自来水">自来水</option>
-                    <option value="过滤水">过滤水</option>
-                    <option value="瓶装水">瓶装水</option>
+                    <option value="水箱">水箱</option>
+                    <option value="桶装水">桶装水</option>
+                    <option value="自进水">自进水</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">电源电压</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">电源电压频率</label>
                   <input
                     type="text"
                     name="voltage"
                     value={formData.voltage}
                     onChange={handleChange}
-                    placeholder="例如: 220V"
+                    placeholder="例如: 220V 50Hz"
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
                   />
                 </div>
@@ -574,7 +539,7 @@ export default function SubmitIssuePage() {
                       onChange={handleChange}
                       className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
                     />
-                    <span className="text-sm text-gray-900 font-medium">尝试重启</span>
+                    <span className="text-sm text-gray-900 font-medium">重启后可以修复</span>
                   </label>
 
                   <label className="flex items-center space-x-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 w-full sm:w-auto">
@@ -585,7 +550,7 @@ export default function SubmitIssuePage() {
                       onChange={handleChange}
                       className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
                     />
-                    <span className="text-sm text-gray-900 font-medium">尝试清洁</span>
+                    <span className="text-sm text-gray-900 font-medium">清洁后可以修复</span>
                   </label>
                 </div>
 

@@ -90,11 +90,6 @@ function SettingsRoot({ onNavigate }: { onNavigate: (view: any) => void }) {
           </button>
         ))}
       </div>
-
-      {/* Footer Info */}
-      <div className="mt-12 pt-8 border-t border-gray-100 text-center text-sm text-gray-400">
-        <p>系统版本 v1.2.0 &middot; 研发中心电子部开发</p>
-      </div>
     </div>
   );
 }

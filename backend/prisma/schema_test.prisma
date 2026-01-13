@@ -121,8 +121,3 @@ model Category {
   createdAt DateTime @default(now())
   issues    Issue[]
 }
-
-model SystemConfig {
-  key   String @id
-  value String
-}

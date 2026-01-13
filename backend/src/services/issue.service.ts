@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma';
 import { IssueStatus } from '../utils/enums';
+import { addWorkingDays } from '../utils/workday';
 
 interface CreateIssueInput {
   title: string;
@@ -7,9 +8,10 @@ interface CreateIssueInput {
   modelId: number;
   reporterName: string;
   severity?: number; // Int 1-4
+  priority?: string; // New
   categoryId?: number; // New
   customData?: any; // New
-  tags?: string[]; // New: Array of strings
+  tags?: string; // Schema expects String? (JSON string or comma separated)
   targetDate?: string; // New
   submitDate?: string;
   contact?: string;
@@ -32,6 +34,7 @@ interface CreateIssueInput {
   replacedPart?: string;
   troubleshooting?: string;
   attachmentIds?: number[];
+  remarks?: string;
 }
 
 import { customAlphabet } from 'nanoid';
@@ -150,20 +153,22 @@ export const issueService = {
         waterType: data.waterType,
         voltage: data.voltage,
         usageFrequency: data.usageFrequency,
+
+        // Ensure defaults
+        severity: data.severity ? Number(data.severity) : 2,
+        priority: "P2", // Explicitly set default priority
+
+        tags: data.tags,
+        remarks: data.remarks,
+
         restarted: data.restarted,
         cleaned: data.cleaned,
         replacedPart: data.replacedPart,
         troubleshooting: data.troubleshooting,
 
-
-
-        // New Fields
-        severity: data.severity !== undefined ? Number(data.severity) : 2, // Default to MEDIUM (2)
-        categoryId: data.categoryId !== undefined ? Number(data.categoryId) : undefined, // Link Category
-        tags: data.tags ? JSON.stringify(data.tags) : undefined, // Store as JSON string
-        targetDate: parseDate(data.targetDate),
-
-        // priority: PENDING by default (set by admin later)
+        categoryId: data.categoryId ? Number(data.categoryId) : undefined, // Link Category
+        // Calculate Target Date: Default 5 working days from now (or submitDate)
+        targetDate: addWorkingDays(parseDate(data.submitDate) || new Date(), 5),
 
         status: IssueStatus.PENDING, // 默认状态
         attachments: data.attachmentIds && data.attachmentIds.length > 0 ? {
@@ -453,5 +458,34 @@ export const issueService = {
     });
   },
 
+  // 删除问题 (Cascading delete)
+  delete: async (id: number) => {
+    return prisma.$transaction(async (tx) => {
+      // 1. Unlink children
+      await tx.issue.updateMany({
+        where: { parentId: id },
+        data: { parentId: null }
+      });
 
+      // 2. Delete attachments (Direct + Comment attachments)
+      await tx.attachment.deleteMany({
+        where: {
+          OR: [
+            { issueId: id },
+            { comment: { issueId: id } }
+          ]
+        }
+      });
+
+      // 3. Delete comments (and change logs)
+      await tx.comment.deleteMany({
+        where: { issueId: id }
+      });
+
+      // 4. Delete issue
+      return tx.issue.delete({
+        where: { id }
+      });
+    });
+  }
 };

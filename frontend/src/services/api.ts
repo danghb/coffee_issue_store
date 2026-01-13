@@ -95,6 +95,7 @@ export interface Issue {
   cleaned?: boolean;
   replacedPart?: string;
   troubleshooting?: string;
+  remarks?: string; // 备注信息
 
   // --- 系统状态 ---
   status: string;
@@ -355,5 +356,10 @@ export const issueService = {
   updateComment: async (issueId: number, commentId: number, content: string) => {
     const response = await api.put(`/issues/${issueId}/comments/${commentId}`, { content });
     return response.data;
+  },
+
+  // 删除问题
+  deleteIssue: async (id: number) => {
+    await api.delete(`/issues/${id}`);
   }
 };

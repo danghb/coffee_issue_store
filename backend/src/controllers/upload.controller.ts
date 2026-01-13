@@ -51,11 +51,9 @@ export const uploadController = {
       reply.header('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(attachment.filename)}`);
       reply.header('Content-Type', attachment.mimeType);
 
-      // 发送文件
-      // 读取文件内容
-      const fileBuffer = fs.readFileSync(filePath);
-
-      return reply.send(fileBuffer);
+      // 使用流发送文件
+      const stream = fs.createReadStream(filePath);
+      return reply.send(stream);
     } catch (error) {
       request.log.error(error);
       return reply.code(500).send({ error: 'Download failed' });

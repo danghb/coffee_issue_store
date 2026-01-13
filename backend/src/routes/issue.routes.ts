@@ -32,6 +32,9 @@ export async function issueRoutes(server: FastifyInstance) {
   // Public access allowed, controller handles logic
   server.get('/:id', { preHandler: [optionalAuth] }, issueController.findOne as any);
 
+  // Delete Issue (Admin only)
+  server.delete('/:id', { preHandler: [authenticate, requireAdmin] }, issueController.delete as any);
+
   // Status Update: Developer/Admin
   server.patch('/:id/status', { preHandler: [authenticate, requireDeveloper] }, issueController.updateStatus as any);
 
