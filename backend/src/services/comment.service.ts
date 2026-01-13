@@ -33,5 +33,13 @@ export const commentService = {
       where: { issueId },
       orderBy: { createdAt: 'asc' }
     });
+  },
+
+  // 更新评论内容
+  async update(id: number, content: string) {
+    return prisma.comment.update({
+      where: { id },
+      data: { content }
+    });
   }
 };

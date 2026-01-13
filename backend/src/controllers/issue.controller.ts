@@ -259,23 +259,60 @@ export const issueController = {
   // 并案处理 (Admin Only)
   merge: async (request: FastifyRequest<{ Params: { id: string }, Body: { childIds: number[] } }>, reply: FastifyReply) => {
     try {
-      const id = Number(request.params.id);
+      const parentId = Number(request.params.id);
       const { childIds } = request.body;
       const user = request.user as any;
 
-      if (!childIds || !Array.isArray(childIds) || childIds.length === 0) {
-        return reply.code(400).send({ error: 'childIds must be a non-empty array' });
+      if (!childIds || childIds.length === 0) {
+        return reply.code(400).send({ error: 'childIds is required' });
       }
 
-      if (childIds.includes(id)) {
-        return reply.code(400).send({ error: 'Cannot merge issue into itself' });
-      }
+      const author = user?.username || 'Admin';
+      await issueService.merge(parentId, childIds, author);
 
-      await issueService.merge(id, childIds, user?.username || 'Admin');
-      return reply.code(200).send({ message: 'Issues merged successfully' });
+      return reply.send({ message: 'Issues merged successfully' });
     } catch (error) {
       request.log.error(error);
       return reply.code(500).send({ error: 'Internal Server Error' });
     }
-  }
+  },
+
+  // 取消并案处理 (Admin Only)
+  unmerge: async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    try {
+      const childId = Number(request.params.id);
+      const user = request.user as any;
+      const author = user?.username || 'Admin';
+
+      await issueService.unmerge(childId, author);
+
+      return reply.send({ message: 'Issue unmerged successfully' });
+    } catch (error: any) {
+      request.log.error(error);
+      if (error.message === 'Issue is not merged or does not exist') {
+        return reply.code(400).send({ error: error.message });
+      }
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  },
+
+  // 更新评论
+  updateComment: async (request: FastifyRequest<{ Params: { id: string; commentId: string }; Body: { content: string } }>, reply: FastifyReply) => {
+    try {
+      const commentId = parseInt(request.params.commentId);
+      const { content } = request.body;
+
+      if (!content) {
+        return reply.code(400).send({ error: 'Content is required' });
+      }
+
+      // 更新评论
+      const updatedComment = await commentService.update(commentId, content);
+
+      return reply.send(updatedComment);
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  },
 };

@@ -37,10 +37,11 @@ const start = async () => {
       }
     });
 
-    await server.register(fastifyStatic, {
-      root: path.join(__dirname, '../uploads'),
-      prefix: '/api/uploads/files/',
-    });
+    // 静态文件服务已移除，改用专用的下载端点来控制文件名
+    // await server.register(fastifyStatic, {
+    //   root: path.join(__dirname, '../uploads'),
+    //   prefix: '/api/uploads/files/',
+    // });
 
     // 注册路由
     await server.register(authRoutes, { prefix: '/api/auth' });

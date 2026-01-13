@@ -27,14 +27,14 @@ export async function issueRoutes(server: FastifyInstance) {
   // 详情: 登录用户均可看，但在 Controller 内部做数据过滤
   // 列表: 登录用户均可看
   server.get('/', { preHandler: [authenticate] }, issueController.findAll as any);
-  
+
   // Get Detail (Support NanoID for guest, ID for admin)
   // Public access allowed, controller handles logic
   server.get('/:id', { preHandler: [optionalAuth] }, issueController.findOne as any);
 
   // Status Update: Developer/Admin
   server.patch('/:id/status', { preHandler: [authenticate, requireDeveloper] }, issueController.updateStatus as any);
-  
+
   // General Update (Support/Developer/Admin - for basic info)
   // We allow public access for update? No, that's dangerous.
   // But user said "unlogged user" is also support.
@@ -51,6 +51,12 @@ export async function issueRoutes(server: FastifyInstance) {
   // Merge Issues (Developer/Admin)
   server.post('/:id/merge', { preHandler: [authenticate, requireDeveloper] }, issueController.merge as any);
 
+  // Unmerge Issues (Developer/Admin)
+  server.post('/:id/unmerge', { preHandler: [authenticate, requireDeveloper] }, issueController.unmerge as any);
+
   // Add comment
   server.post('/:id/comments', { preHandler: [optionalAuth] }, issueController.addComment as any);
+
+  // Update comment
+  server.put('/:id/comments/:commentId', { preHandler: [authenticate] }, issueController.updateComment as any);
 }

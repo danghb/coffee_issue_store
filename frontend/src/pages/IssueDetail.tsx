@@ -10,6 +10,7 @@ import { EditableField } from '../components/EditableField';
 import { EditableTags } from '../components/EditableTags';
 import { SeverityBadge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
 import { ResolveIssueDialog } from '../components/ResolveIssueDialog';
+import { StatusSelectDialog } from '../components/StatusSelectDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import IssueSelector from '../components/IssueSelector';
 
@@ -45,6 +46,22 @@ export default function IssueDetailPage() {
   const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [pendingMergeTarget, setPendingMergeTarget] = useState<{ id: number, title?: string } | null>(null);
 
+  // Unmerge dialog state
+  const [showUnmergeDialog, setShowUnmergeDialog] = useState(false);
+  const [pendingUnmergeChildId, setPendingUnmergeChildId] = useState<number | null>(null);
+
+  // Status/Resolution dialogs
+  const [showResolveDialog, setShowResolveDialog] = useState(false);
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [targetStatus, setTargetStatus] = useState<string>('');
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<Issue['status'] | ''>('');
+
+  // 辅助函数：获取下载链接
+  const getDownloadUrl = (path: string) => {
+    return `/api/uploads/files/${path}`;
+  };
+
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
@@ -53,6 +70,8 @@ export default function IssueDetailPage() {
   const [showOperationLog, setShowOperationLog] = useState(false);
   // 附件折叠状态
   const [showAttachments, setShowAttachments] = useState(false);
+  // 正在编辑的评论ID
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
 
   // Memoize loadIssue to avoid re-creation if dependencies don't change
   const loadIssue = useCallback(async (issueId: number | string) => {
@@ -122,17 +141,14 @@ export default function IssueDetailPage() {
     }
   };
 
-  // Resolution Dialog
-  const [showResolveDialog, setShowResolveDialog] = useState(false);
-  const [targetStatus, setTargetStatus] = useState('');
-
+  // Resolution Dialog handlers
   const handleStatusChange = async (newStatus: string) => {
     if (!issue) return;
 
     // If resolving or closing, open dialog to confirm category/add comment
     if (newStatus === 'RESOLVED' || newStatus === 'CLOSED') {
       setTargetStatus(newStatus);
-      setShowResolveDialog(true);
+      setShowStatusDialog(true); // Use setShowStatusDialog instead of setShowResolveDialog
       return;
     }
 
@@ -140,46 +156,37 @@ export default function IssueDetailPage() {
     if (newStatus !== 'IN_PROGRESS' && !window.confirm(`确认将状态变更为 ${newStatus}?`)) return;
 
     try {
-      setUpdatingStatus(true);
-      await issueService.updateStatus(issue.id, newStatus, user?.username || 'Admin');
+      await issueService.updateStatus(issue.id, newStatus, user?.username || 'Admin'); // Assuming currentUser is user
       await loadIssue(issue.id);
     } catch (err) {
       console.error(err);
       alert('状态更新失败');
-    } finally {
-      setUpdatingStatus(false);
     }
   };
 
   const handleResolveConfirm = async (data: { categoryId: number; comment?: string }) => {
     if (!issue) return;
     try {
-      setUpdatingStatus(true);
-
-      // 1. Update Category if changed or not set
-      if (issue.category?.id !== data.categoryId) {
-        // We need to use issueService.update which wraps api.put('/issues/:id', data)
-        // Ensure backend create/update logic handles categoryId (It typically should if api expects Partial<Issue>)
-        await issueService.update(issue.id, { categoryId: data.categoryId });
+      await issueService.update(issue.id, { status: targetStatus, categoryId: data.categoryId });
+      if (data.comment) {
+        await issueService.addComment(issue.id, data.comment, user?.username || 'Admin', false);
       }
-
-      // 2. Add Comment if present
-      if (data.comment?.trim()) {
-        const authorName = user ? user.username : 'Admin';
-        await issueService.addComment(issue.id, data.comment, authorName, false, []);
-      }
-
-      // 3. Update Status
-      await issueService.updateStatus(issue.id, targetStatus, user?.username || 'Admin');
-
-      // 4. Reload
       await loadIssue(issue.id);
-      setShowResolveDialog(false);
+      setShowStatusDialog(false); // Close the StatusSelectDialog
     } catch (err) {
       console.error(err);
       alert('操作失败');
-    } finally {
-      setUpdatingStatus(false);
+    }
+  };
+
+  const handleStatusChange2 = async (newStatus: string) => {
+    if (!issue) return;
+    try {
+      await issueService.updateStatus(issue.id, newStatus, user?.username || 'Admin');
+      await loadIssue(issue.id);
+    } catch (err) {
+      console.error(err);
+      alert('状态更新失败');
     }
   };
 
@@ -221,7 +228,11 @@ export default function IssueDetailPage() {
   const renderOperationLog = () => {
     if (!issue?.comments) return null;
 
-    const operationLogs = issue.comments.filter(c => c.type === 'STATUS_CHANGE' || c.type === 'FIELD_CHANGE');
+    const operationLogs = issue.comments.filter(c =>
+      c.type === 'STATUS_CHANGE' ||
+      c.type === 'FIELD_CHANGE' ||
+      c.type === 'SYSTEM'
+    );
 
     if (operationLogs.length === 0) return null;
 
@@ -290,8 +301,8 @@ export default function IssueDetailPage() {
       return <div className="text-gray-500 text-sm text-center py-4">暂无评论</div>;
     }
 
-    // 只显示用户评论（MESSAGE和SYSTEM）
-    const userComments = issue.comments.filter(c => c.type === 'MESSAGE' || c.type === 'SYSTEM');
+    // 只显示用户提交的评论（MESSAGE类型）
+    const userComments = issue.comments.filter(c => c.type === 'MESSAGE');
 
     if (userComments.length === 0) {
       return <div className="text-gray-500 text-sm text-center py-4">暂无评论</div>;
@@ -327,38 +338,67 @@ export default function IssueDetailPage() {
                       </span>
                     </div>
                     <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                      <div>
-                        <div className="text-sm text-gray-500">
+                      <div className="flex-1">
+                        <div className="text-sm text-gray-500 flex items-center justify-between">
                           <span className="font-medium text-gray-900 mr-2">
                             {comment.author}
                             {comment.isInternal && <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">内部</span>}
                           </span>
-                          <div className="text-sm text-gray-800">
-                            <DualModeEditor value={comment.content || ''} onChange={() => { }} editable={false} />
+                          <div className="flex items-center gap-2">
+                            <time className="text-sm whitespace-nowrap text-gray-500" dateTime={comment.createdAt}>{formatDate(comment.createdAt)}</time>
+                            <button
+                              type="button"
+                              onClick={() => setEditingCommentId(comment.id)}
+                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="编辑评论"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
+                        <div className="text-sm text-gray-800 mt-1">
+                          {editingCommentId === comment.id ? (
+                            <DualModeEditor
+                              value={comment.content || ''}
+                              onChange={async (newContent) => {
+                                try {
+                                  await issueService.updateComment(issue.id, comment.id, newContent);
+                                  await loadIssue(issue.id);
+                                  setEditingCommentId(null);
+                                } catch (err) {
+                                  console.error('Failed to update comment:', err);
+                                  alert('更新评论失败');
+                                }
+                              }}
+                              editable={true}
+                              clickToEdit={false}
+                            />
+                          ) : (
+                            <DualModeEditor
+                              value={comment.content || ''}
+                              onChange={() => { }}
+                              editable={false}
+                              clickToEdit={false}
+                            />
+                          )}
+                        </div>
+                      </div>
 
-                        {/* Comment Attachments */}
-                        {comment.attachments && comment.attachments.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {comment.attachments.map(file => (
-                              <a
-                                key={file.id}
-                                href={`/ api / uploads / files / ${file.path} `}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center px-2.5 py-1.5 border border-gray-200 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-                              >
-                                {getFileIcon(file.mimeType)}
-                                <span className="ml-2 truncate max-w-[150px]">{file.filename}</span>
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                        <time dateTime={comment.createdAt}>{formatDate(comment.createdAt)}</time>
-                      </div>
+                      {/* Comment Attachments */}
+                      {comment.attachments && comment.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {comment.attachments.map(file => (
+                            <a
+                              key={file.id}
+                              href={getDownloadUrl(file.path)}
+                              className="inline-flex items-center px-2.5 py-1.5 border border-gray-200 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                            >
+                              {getFileIcon(file.mimeType)}
+                              <span className="ml-2 truncate max-w-[150px]">{file.filename}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -504,95 +544,56 @@ export default function IssueDetailPage() {
       }
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/issues')} className="text-gray-400 hover:text-gray-600 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                #{issue.nanoId || issue.id}
-              </span>
-              {issue.category && (
-                <span className="text-sm font-medium text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                  {issue.category.name}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-3">
+              <button onClick={() => navigate('/issues')} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                  #{issue.nanoId || issue.id}
                 </span>
-              )}
-              <EditableField
-                value={issue.status}
-                onSave={(val) => handleFieldUpdate('status', val)}
-                type="select"
-                options={[
-                  { value: 'PENDING', label: '待处理' },
-                  { value: 'IN_PROGRESS', label: '处理中' },
-                  { value: 'RESOLVED', label: '已解决' },
-                  { value: 'CLOSED', label: '已关闭' }
-                ]}
-                renderValue={(val) => (
-                  <span className={cn(
-                    "px-2.5 py-0.5 rounded-full text-xs font-medium border",
-                    val === 'PENDING' ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-                      val === 'IN_PROGRESS' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                        val === 'RESOLVED' ? "bg-green-50 text-green-700 border-green-200" :
-                          "bg-gray-50 text-gray-700 border-gray-200"
-                  )}>
-                    {val === 'PENDING' ? '待处理' : val === 'IN_PROGRESS' ? '处理中' : val === 'RESOLVED' ? '已解决' : '已关闭'}
+                {issue.category && (
+                  <span className="text-sm font-medium text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                    {issue.category.name}
                   </span>
                 )}
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <EditableField
+                value={issue.title}
+                onSave={(val) => handleFieldUpdate('title', val)}
+                displayClassName="text-2xl font-bold text-gray-900"
               />
+              <SeverityBadge severity={issue.severity || 'MEDIUM'} />
+              {isInternalViewer && <PriorityBadge priority={issue.priority || 'P2'} />}
+            </div>
+            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+              <span className="flex items-center">
+                <Calendar className="w-4 h-4 mr-1.5" />
+                提交于 {formatDate(issue.submitDate)}
+              </span>
+              <span className="flex items-center">
+                <User className="w-4 h-4 mr-1.5" />
+                {issue.reporterName}
+              </span>
             </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900 mt-2 flex items-center gap-3">
-            <EditableField
-              value={issue.title}
-              onSave={(val) => handleFieldUpdate('title', val)}
-              displayClassName="text-2xl font-bold text-gray-900"
-            />
-            <SeverityBadge severity={issue.severity || 'MEDIUM'} />
-            {isInternalViewer && <PriorityBadge priority={issue.priority || 'P2'} />}
-          </div>
-          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-            <span className="flex items-center">
-              <Calendar className="w-4 h-4 mr-1.5" />
-              提交于 {formatDate(issue.submitDate)}
-            </span>
-            <span className="flex items-center">
-              <User className="w-4 h-4 mr-1.5" />
-              {issue.reporterName}
-            </span>
-          </div>
-        </div>
 
-        <div className="flex gap-2">
-          {/* Quick Actions */}
-          {issue.status !== 'IN_PROGRESS' && (
-            <button
-              onClick={() => handleStatusChange('IN_PROGRESS')}
-              disabled={updatingStatus}
-              className="px-4 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors border border-blue-200"
-            >
-              处理中
-            </button>
-          )}
-          {issue.status !== 'RESOLVED' && (
-            <button
-              onClick={() => handleStatusChange('RESOLVED')}
-              disabled={updatingStatus}
-              className="px-4 py-2 bg-green-50 text-green-700 text-sm font-medium rounded-lg hover:bg-green-100 transition-colors border border-green-200"
-            >
-              已解决
-            </button>
-          )}
-          {issue.status !== 'CLOSED' && (
-            <button
-              onClick={() => handleStatusChange('CLOSED')}
-              disabled={updatingStatus}
-              className="px-4 py-2 bg-gray-50 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
-            >
-              关闭
-            </button>
-          )}
+          {/* Clickable Status Badge */}
+          <div
+            onClick={() => {
+              setTargetStatus(issue.status);
+              setShowStatusDialog(true);
+            }}
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            title="点击修改状态"
+          >
+            <StatusBadge status={issue.status} className="text-lg px-4 py-2" />
+          </div>
         </div>
       </div>
 
@@ -857,9 +858,7 @@ export default function IssueDetailPage() {
                         </div>
                       </div>
                       <a
-                        href={`/api/uploads/files/${file.path}`}
-                        target="_blank"
-                        rel="noreferrer"
+                        href={getDownloadUrl(file.path)}
                         className="ml-4 flex-shrink-0 text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                       >
                         <Download className="w-4 h-4 mr-1.5" />
@@ -911,20 +910,37 @@ export default function IssueDetailPage() {
               <ul className="divide-y divide-gray-100">
                 {issue.children.map(child => (
                   <li key={child.id} className="p-4 hover:bg-gray-50 transition-colors">
-                    <Link to={`/issues/${child.id}`} className="block group">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-mono text-gray-500 group-hover:text-blue-600">#{child.id}</span>
-                        <StatusBadge status={child.status} className="scale-75 origin-top-right" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                        {child.title}
-                      </p>
-                      <div className="mt-2 flex items-center text-xs text-gray-500">
-                        <span>{child.reporterName}</span>
-                        <span className="mx-1">·</span>
-                        <span>{new Date(child.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </Link>
+                    <div className="flex justify-between items-start gap-2">
+                      <Link to={`/issues/${child.id}`} className="block group flex-1">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-xs font-mono text-gray-500 group-hover:text-blue-600">#{child.id}</span>
+                          <StatusBadge status={child.status} className="scale-75 origin-top-right" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                          {child.title}
+                        </p>
+                        <div className="mt-2 flex items-center text-xs text-gray-500">
+                          <span>{child.reporterName}</span>
+                          <span className="mx-1">·</span>
+                          <span>{new Date(child.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </Link>
+                      {isInternalViewer && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setPendingUnmergeChildId(child.id);
+                            setShowUnmergeDialog(true);
+                          }}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition-colors flex-shrink-0"
+                          title="取消关联"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -943,21 +959,37 @@ export default function IssueDetailPage() {
               </div>
               <div>
                 <span className="text-xs text-gray-400 block mb-1">序列号 (SN)</span>
-                <span className="text-sm font-mono text-gray-700 bg-gray-100 px-2 py-1 rounded inline-block">{issue.serialNumber || '-'}</span>
+                <EditableField
+                  value={issue.serialNumber || '-'}
+                  onSave={(val) => handleFieldUpdate('serialNumber', val)}
+                  displayClassName="text-sm font-mono text-gray-700 bg-gray-100 px-2 py-1 rounded inline-block"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-xs text-gray-400 block mb-1">固件版本</span>
-                  <span className="text-sm text-gray-900">{issue.firmware || '-'}</span>
+                  <EditableField
+                    value={issue.firmware || '-'}
+                    onSave={(val) => handleFieldUpdate('firmware', val)}
+                    displayClassName="text-sm text-gray-900"
+                  />
                 </div>
                 <div>
                   <span className="text-xs text-gray-400 block mb-1">软件版本</span>
-                  <span className="text-sm text-gray-900">{issue.softwareVer || '-'}</span>
+                  <EditableField
+                    value={issue.softwareVer || '-'}
+                    onSave={(val) => handleFieldUpdate('softwareVer', val)}
+                    displayClassName="text-sm text-gray-900"
+                  />
                 </div>
               </div>
               <div>
                 <span className="text-xs text-gray-400 block mb-1">购买日期</span>
-                <span className="text-sm text-gray-900">{formatDate(issue.purchaseDate).split(' ')[0]}</span>
+                <EditableField
+                  value={issue.purchaseDate ? formatDate(issue.purchaseDate).split(' ')[0] : '-'}
+                  onSave={(val) => handleFieldUpdate('purchaseDate', val)}
+                  displayClassName="text-sm text-gray-900"
+                />
               </div>
             </div>
           </section>
@@ -968,21 +1000,37 @@ export default function IssueDetailPage() {
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">联系人信息</h3>
             </div>
             <div className="p-5 space-y-4">
-              <div className="flex items-center">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
-                  {issue.reporterName.charAt(0).toUpperCase()}
+              <div className="space-y-3">
+                <div>
+                  <span className="text-xs text-gray-400 block mb-1">联系人姓名</span>
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
+                      {issue.reporterName.charAt(0).toUpperCase()}
+                    </div>
+                    <EditableField
+                      value={issue.reporterName}
+                      onSave={(val) => handleFieldUpdate('reporterName', val)}
+                      displayClassName="text-sm font-medium text-gray-900"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{issue.reporterName}</p>
-                  {issue.contact && <p className="text-xs text-gray-500">{issue.contact}</p>}
+                  <span className="text-xs text-gray-400 block mb-1">联系方式</span>
+                  <EditableField
+                    value={issue.contact || '-'}
+                    onSave={(val) => handleFieldUpdate('contact', val)}
+                    displayClassName="text-sm text-gray-900"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block mb-1">客户名称</span>
+                  <EditableField
+                    value={issue.customerName || '-'}
+                    onSave={(val) => handleFieldUpdate('customerName', val)}
+                    displayClassName="text-sm text-gray-900 font-medium"
+                  />
                 </div>
               </div>
-              {issue.customerName && (
-                <div className="pt-3 border-t border-gray-100">
-                  <span className="text-xs text-gray-400 block mb-1">客户名称</span>
-                  <span className="text-sm text-gray-900 font-medium">{issue.customerName}</span>
-                </div>
-              )}
             </div>
           </section>
 
@@ -993,21 +1041,50 @@ export default function IssueDetailPage() {
             </div>
             <div className="p-5">
               <dl className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <dt className="text-sm text-gray-500">使用环境</dt>
-                  <dd className="text-sm font-medium text-gray-900 bg-gray-50 px-2 py-0.5 rounded">{issue.environment || '-'}</dd>
+                <div>
+                  <dt className="text-xs text-gray-400 block mb-1">使用环境</dt>
+                  <dd><EditableField
+                    value={issue.environment || ''}
+                    onSave={(val) => handleFieldUpdate('environment', val)}
+                    type="select"
+                    options={[
+                      { value: '', label: '请选择' },
+                      { value: '商用', label: '商用' },
+                      { value: '家用', label: '家用' }
+                    ]}
+                    displayClassName="text-sm font-medium text-gray-900 bg-gray-50 px-2 py-0.5 rounded inline-block"
+                  /></dd>
                 </div>
-                <div className="flex justify-between items-center">
-                  <dt className="text-sm text-gray-500">地点</dt>
-                  <dd className="text-sm font-medium text-gray-900">{issue.location || '-'}</dd>
+                <div>
+                  <dt className="text-xs text-gray-400 block mb-1">地点</dt>
+                  <dd><EditableField
+                    value={issue.location || '-'}
+                    onSave={(val) => handleFieldUpdate('location', val)}
+                    displayClassName="text-sm font-medium text-gray-900"
+                  /></dd>
                 </div>
-                <div className="flex justify-between items-center">
-                  <dt className="text-sm text-gray-500">水源</dt>
-                  <dd className="text-sm font-medium text-gray-900">{issue.waterType || '-'}</dd>
+                <div>
+                  <dt className="text-xs text-gray-400 block mb-1">水源</dt>
+                  <dd><EditableField
+                    value={issue.waterType || ''}
+                    onSave={(val) => handleFieldUpdate('waterType', val)}
+                    type="select"
+                    options={[
+                      { value: '', label: '请选择' },
+                      { value: '自来水', label: '自来水' },
+                      { value: '过滤水', label: '过滤水' },
+                      { value: '瓶装水', label: '瓶装水' }
+                    ]}
+                    displayClassName="text-sm font-medium text-gray-900"
+                  /></dd>
                 </div>
-                <div className="flex justify-between items-center">
-                  <dt className="text-sm text-gray-500">电压</dt>
-                  <dd className="text-sm font-medium text-gray-900">{issue.voltage || '-'}</dd>
+                <div>
+                  <dt className="text-xs text-gray-400 block mb-1">电压</dt>
+                  <dd><EditableField
+                    value={issue.voltage || '-'}
+                    onSave={(val) => handleFieldUpdate('voltage', val)}
+                    displayClassName="text-sm font-medium text-gray-900"
+                  /></dd>
                 </div>
               </dl>
             </div>
@@ -1161,6 +1238,57 @@ export default function IssueDetailPage() {
         confirmText="确认并入"
         onClose={() => setShowMergeDialog(false)}
         onConfirm={executeMerge}
+      />
+
+      {/* Status Change Dialog */}
+      {showStatusDialog && issue && (
+        <StatusSelectDialog
+          isOpen={showStatusDialog}
+          currentStatus={issue.status}
+          currentCategoryId={issue.category?.id}
+          onClose={() => setShowStatusDialog(false)}
+          onConfirm={async (status, categoryId, comment) => {
+            try {
+              const updates: any = { status };
+              if (categoryId) updates.categoryId = categoryId;
+
+              await issueService.update(issue.id, updates);
+
+              if (comment) {
+                await issueService.addComment(issue.id, comment, user?.username || 'Admin', false);
+              }
+
+              await loadIssue(issue.id);
+            } catch (err) {
+              console.error(err);
+              alert('状态更新失败');
+            }
+          }}
+        />
+      )}
+
+      {/* Unmerge Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showUnmergeDialog}
+        title="取消关联"
+        content={`确定要将工单 #${pendingUnmergeChildId} 从此主工单中移除吗？\n\n移除后，该工单将恢复为独立工单。`}
+        confirmText="确认移除"
+        isDestructive={true}
+        onClose={() => {
+          setShowUnmergeDialog(false);
+          setPendingUnmergeChildId(null);
+        }}
+        onConfirm={async () => {
+          if (!pendingUnmergeChildId || !issue) return;
+          try {
+            await issueService.unmerge(pendingUnmergeChildId);
+            await loadIssue(issue.id);
+            setShowUnmergeDialog(false);
+            setPendingUnmergeChildId(null);
+          } catch (error: any) {
+            alert(error.message || '取消关联失败');
+          }
+        }}
       />
 
     </div>

@@ -80,6 +80,51 @@ export const issueService = {
     });
   },
 
+  // 取消并案处理
+  async unmerge(childId: number, author: string = 'Admin') {
+    return prisma.$transaction(async (tx) => {
+      // Get the issue to find its parent
+      const issue = await tx.issue.findUnique({
+        where: { id: childId },
+        select: { parentId: true }
+      });
+
+      if (!issue || !issue.parentId) {
+        throw new Error('Issue is not merged or does not exist');
+      }
+
+      const parentId = issue.parentId;
+
+      // Remove parent relationship
+      await tx.issue.update({
+        where: { id: childId },
+        data: { parentId: null }
+      });
+
+      // Add comment to former parent
+      await tx.comment.create({
+        data: {
+          issueId: parentId,
+          content: `子工单 #${childId} 已取消关联`,
+          author,
+          type: 'SYSTEM',
+          isInternal: true
+        }
+      });
+
+      // Add comment to child
+      await tx.comment.create({
+        data: {
+          issueId: childId,
+          content: `已从主工单 #${parentId} 取消关联`,
+          author,
+          type: 'SYSTEM',
+          isInternal: false
+        }
+      });
+    });
+  },
+
   // 创建问题
   async create(data: CreateIssueInput) {
     return prisma.issue.create({

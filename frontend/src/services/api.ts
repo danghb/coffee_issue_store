@@ -343,5 +343,17 @@ export const issueService = {
   merge: async (id: number, childIds: number[]) => {
     const response = await api.post(`/issues/${id}/merge`, { childIds });
     return response.data;
+  },
+
+  // 取消并案
+  unmerge: async (id: number) => {
+    const response = await api.post(`/issues/${id}/unmerge`);
+    return response.data;
+  },
+
+  // 更新评论
+  updateComment: async (issueId: number, commentId: number, content: string) => {
+    const response = await api.put(`/issues/${issueId}/comments/${commentId}`, { content });
+    return response.data;
   }
 };

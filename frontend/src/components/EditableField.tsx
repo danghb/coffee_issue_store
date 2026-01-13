@@ -79,6 +79,7 @@ export const EditableField: React.FC<EditableFieldProps> = ({
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onKeyDown={handleKeyDown}
+                        onBlur={handleSave}
                         className="flex-1 rounded-md border border-blue-300 px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                         disabled={isSaving}
                     >
@@ -93,6 +94,7 @@ export const EditableField: React.FC<EditableFieldProps> = ({
                         ref={inputRef as React.RefObject<HTMLTextAreaElement>}
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleSave}
                         className="flex-1 rounded-md border border-blue-300 px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none min-h-[80px]"
                         disabled={isSaving}
                     />
@@ -103,6 +105,7 @@ export const EditableField: React.FC<EditableFieldProps> = ({
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onKeyDown={handleKeyDown}
+                        onBlur={handleSave}
                         className="flex-1 rounded-md border border-blue-300 px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                         disabled={isSaving}
                     />
