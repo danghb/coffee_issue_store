@@ -25,6 +25,9 @@ export const EditableField: React.FC<EditableFieldProps> = ({
     placeholder = '点击编辑',
     renderValue,
 }) => {
+    if (value === undefined) {
+        console.warn('EditableField received undefined value for label:', label);
+    }
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(String(value ?? ''));
     const [isSaving, setIsSaving] = useState(false);

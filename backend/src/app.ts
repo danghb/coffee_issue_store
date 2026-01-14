@@ -18,6 +18,7 @@ import { statsRoutes } from './routes/stats.routes';
 import { settingsRoutes } from './routes/settings.routes';
 import { authRoutes } from './routes/auth.routes';
 import { categoryRoutes } from './routes/category.routes';
+import { userRoutes } from './routes/user.routes';
 import { ipWhitelistMiddleware } from './middleware/ip.middleware';
 
 const start = async () => {
@@ -50,6 +51,7 @@ const start = async () => {
     await server.register(statsRoutes, { prefix: '/api/stats' });
     await server.register(settingsRoutes, { prefix: '/api/settings' });
     await server.register(categoryRoutes, { prefix: '/api/categories' });
+    await server.register(userRoutes, { prefix: '/api/users' });
 
     // 基础健康检查路由
     server.get('/ping', async (request, reply) => {

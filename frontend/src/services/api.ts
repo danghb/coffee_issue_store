@@ -220,6 +220,8 @@ export interface User {
   username: string;
   name?: string;
   role: 'ADMIN' | 'DEVELOPER' | 'SUPPORT';
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface LoginResponse {
@@ -263,6 +265,31 @@ api.interceptors.request.use(config => {
   }
   return config;
 });
+
+export const userService = {
+  // 获取用户列表
+  getUsers: async () => {
+    const response = await api.get<User[]>('/users');
+    return response.data;
+  },
+
+  // 更新用户角色
+  updateUserRole: async (id: number, role: string) => {
+    const response = await api.put<User>(`/users/${id}/role`, { role });
+    return response.data;
+  },
+
+  // 重置用户密码
+  resetPassword: async (id: number, newPassword: string) => {
+    const response = await api.put(`/users/${id}/password`, { newPassword });
+    return response.data;
+  },
+
+  // 删除用户
+  deleteUser: async (id: number) => {
+    await api.delete(`/users/${id}`);
+  }
+};
 
 export const issueService = {
   // ... existing methods ...

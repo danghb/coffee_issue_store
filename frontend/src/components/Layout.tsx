@@ -45,10 +45,18 @@ export default function Layout({ children }: LayoutProps) {
     { name: '进度查询', href: '/track', icon: Search, public: true },
     { name: '问题列表', href: '/issues', icon: List, public: false },
     { name: '统计看板', href: '/dashboard', icon: LayoutDashboard, public: false },
-    { name: '系统设置', href: '/settings', icon: Settings, public: false },
+    { name: '系统设置', href: '/settings', icon: Settings, public: false, allowedRoles: ['ADMIN', 'DEVELOPER'] },
   ];
 
-  const filteredNavigation = navigation.filter(item => item.public || user);
+  const filteredNavigation = navigation.filter(item => {
+    // 公开页面始终显示
+    if (item.public) return true;
+    // 需要登录的页面
+    if (!user) return false;
+    // 有角色限制的页面
+    if (item.allowedRoles && !item.allowedRoles.includes(user.role)) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

@@ -36,6 +36,7 @@ interface CreateIssueInput {
   troubleshooting?: string;
   attachmentIds?: number[];
   remarks?: string;
+  createdById?: number; // 创建者用户ID
 }
 
 import { customAlphabet } from 'nanoid';
@@ -131,6 +132,15 @@ export const issueService = {
 
   // 创建问题
   async create(data: CreateIssueInput) {
+    // 1. Fetch SLA configuration (default 5 days)
+    let targetDays = 5;
+    try {
+      const slaDays = await settingsService.getSystemConfig('SLA_DAYS', '5');
+      targetDays = parseInt(slaDays, 10) || 5;
+    } catch (e) {
+      console.error('Failed to load SLA config, using default 5 days', e);
+    }
+
     return prisma.issue.create({
       data: {
         nanoId: generateNanoId(),
@@ -155,8 +165,12 @@ export const issueService = {
         voltage: data.voltage,
         usageFrequency: data.usageFrequency,
 
-        // Ensure defaults
-        severity: data.severity ? Number(data.severity) : 2,
+        // Ensure defaults and map string to int
+        severity: (() => {
+          const s = String(data.severity || 'MEDIUM');
+          const map: Record<string, number> = { 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4 };
+          return map[s] || Number(data.severity) || 2;
+        })(),
         priority: "P2", // Explicitly set default priority
 
         tags: data.tags,
@@ -168,13 +182,15 @@ export const issueService = {
         troubleshooting: data.troubleshooting,
 
         categoryId: data.categoryId ? Number(data.categoryId) : undefined, // Link Category
-        // Calculate Target Date: Dynamic based on SLA config (fetched inside create, or we can fetch before)
-        targetDate: addWorkingDays(parseDate(data.submitDate) || new Date(), await (async () => {
-          const days = await settingsService.getSystemConfig('SLA_DAYS', '5');
-          return parseInt(days, 10) || 5;
-        })()),
+
+        // Calculate Target Date: Dynamic based on SLA config
+        targetDate: addWorkingDays(parseDate(data.submitDate) || new Date(), targetDays),
 
         status: IssueStatus.PENDING, // 默认状态
+
+        // 记录创建者ID（如果已登录）
+        createdById: data.createdById,
+
         attachments: data.attachmentIds && data.attachmentIds.length > 0 ? {
           connect: data.attachmentIds.map(id => ({ id }))
         } : undefined,
@@ -198,7 +214,8 @@ export const issueService = {
     startDate?: string,
     endDate?: string,
     sortBy?: 'createdAt' | 'priority' | 'severity',
-    sortOrder?: 'asc' | 'desc'
+    sortOrder?: 'asc' | 'desc',
+    createdByIdFilter?: number | null // SUPPORT用户的用户ID过滤
   ) {
     const skip = (page - 1) * limit;
     const take = limit === -1 ? undefined : limit; // -1 代表全部
@@ -237,22 +254,32 @@ export const issueService = {
         OR: [
           { title: { contains: search } },
           { description: { contains: search } },
-          { customerName: { contains: search } },
           { reporterName: { contains: search } },
-          { serialNumber: { contains: search } },
-          { model: { name: { contains: search } } } // 关联表查询
+          { nanoId: { contains: search } }
         ]
       };
     }
 
-    const where = {
-      AND: [
-        status && status.length > 0 ? { status: { in: status } } : {},
-        modelId && modelId.length > 0 ? { modelId: { in: modelId } } : {},
-        dateFilter ? { submitDate: dateFilter } : {}, // 假设按照提交时间筛选
-        searchFilter ? searchFilter : {}
-      ]
-    };
+    // 构建 where 条件
+    const where: any = {};
+    if (status && status.length > 0) {
+      where.status = { in: status };
+    }
+    if (modelId && modelId.length > 0) {
+      where.modelId = { in: modelId };
+    }
+    if (searchFilter) {
+      Object.assign(where, searchFilter);
+    }
+    if (dateFilter) {
+      where.submitDate = dateFilter;
+    }
+
+    // SUPPORT用户权限过滤：只能看到自己创建的问题
+    if (createdByIdFilter !== undefined) {
+      where.createdById = createdByIdFilter;
+    }
+    // ADMIN和DEVELOPER不设置此过滤条件，可以看到所有问题（包括游客创建的）
 
     const [total, items] = await prisma.$transaction([
       prisma.issue.count({ where }),

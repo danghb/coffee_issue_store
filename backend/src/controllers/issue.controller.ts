@@ -30,6 +30,9 @@ interface CreateIssueBody {
   troubleshooting?: string;
   remarks?: string;
   attachmentIds?: number[];
+  customData?: any; // 动态字段数据
+  severity?: number | string; // 严重程度
+  categoryId?: number; // 分类ID
 }
 
 interface GetIssuesQuery {
@@ -61,18 +64,29 @@ export const issueController = {
   create: async (request: FastifyRequest<{ Body: CreateIssueBody }>, reply: FastifyReply) => {
     try {
       const body = request.body;
+      const user = request.user as any; // 获取登录用户信息（可能为undefined）
 
       // 简单校验
       if (!body.title || !body.description || !body.modelId || !body.reporterName) {
         return reply.code(400).send({ error: 'Missing required fields' });
       }
 
-      const issue = await issueService.create(body);
+      // 处理 severity 转换：字符串转为数字
+      const severityValue = typeof body.severity === 'string'
+        ? parseInt(body.severity, 10)
+        : body.severity;
+
+      const issue = await issueService.create({
+        ...body,
+        severity: severityValue,
+        createdById: user?.id // 如果用户已登录，记录用户ID
+      });
 
       return reply.code(201).send(issue);
-    } catch (error) {
+    } catch (error: any) {
       request.log.error(error);
-      return reply.code(500).send({ error: 'Internal Server Error' });
+      console.error('Issue Create Error:', error);
+      return reply.code(500).send({ error: 'Internal Server Error', details: error.message, stack: error.stack });
     }
   },
 
@@ -80,14 +94,11 @@ export const issueController = {
   findAll: async (request: FastifyRequest<{ Querystring: GetIssuesQuery }>, reply: FastifyReply) => {
     try {
       const { page, limit, status, search, modelId, startDate, endDate } = request.query;
+      const user = request.user as any; // 从JWT获取用户信息
 
       // Parse multi-select params (comma separated)
       let statusList: IssueStatus[] | undefined = undefined;
       if (status) {
-        // Assume comma separated string for multiple statuses. 
-        // If it sends array (e.g. ?status=PENDING&status=IN_PROGRESS), Fastify handles it depending on query parser, 
-        // but typically standard URLSearchParams with comma is easier for manual handling if querystring array support varies.
-        // Let's support comma-separated string: "PENDING,IN_PROGRESS"
         const statusStr = String(status);
         statusList = statusStr.split(',').filter(Boolean) as IssueStatus[];
       }
@@ -98,6 +109,14 @@ export const issueController = {
         modelIdList = modelStr.split(',').map(s => Number(s)).filter(n => !isNaN(n));
       }
 
+      // 权限控制: 基于用户ID和角色
+      let createdByIdFilter: number | null | undefined = undefined;
+      if (user && user.role === 'SUPPORT') {
+        // SUPPORT用户只能看到自己创建的问题（通过createdById精确匹配）
+        createdByIdFilter = user.id;
+      }
+      // ADMIN和DEVELOPER可以查看所有问题，包括游客创建的（createdById为null）
+
       const result = await issueService.findAll(
         Number(page) || 1,
         Number(limit) || 20,
@@ -107,7 +126,8 @@ export const issueController = {
         startDate,
         endDate,
         request.query.sortBy,
-        request.query.sortOrder
+        request.query.sortOrder,
+        createdByIdFilter // 使用用户ID过滤
       );
       return reply.send(result);
     } catch (error) {

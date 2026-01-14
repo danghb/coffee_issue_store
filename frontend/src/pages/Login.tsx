@@ -51,6 +51,10 @@ export default function LoginPage() {
           <a href="/submit" className="font-medium text-blue-600 hover:text-blue-500">
             提交问题
           </a>
+          {' '}|{' '}
+          <a href="/register" className="font-medium text-blue-600 hover:text-blue-500">
+            注册新账号
+          </a>
         </p>
       </div>
 

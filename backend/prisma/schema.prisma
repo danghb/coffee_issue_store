@@ -20,6 +20,8 @@ model User {
   password  String
   name      String?
   role      String   @default("ADMIN")
+  isBuiltin Boolean  @default(false)
+  issues    Issue[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -60,6 +62,8 @@ model Issue {
   tags          String?
   targetDate    DateTime?
   status        String   @default("PENDING")
+  createdById   Int?
+  createdBy     User?    @relation(fields: [createdById], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   attachments   Attachment[]

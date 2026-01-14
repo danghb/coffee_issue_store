@@ -249,7 +249,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         return (
             <div data-color-mode="light" className="wmde-markdown-var">
                 <MDEditor.Markdown
-                    source={value}
+                    source={value || ''}
                     style={{ padding: 0, backgroundColor: 'transparent' }}
                     components={{
                         code: (props) => {
@@ -290,7 +290,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 }
             `}} />
             <MDEditor
-                value={value}
+                value={value || ''}
                 onChange={(val) => onChange(val || "")}
                 height={height}
                 preview="live"

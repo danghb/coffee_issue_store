@@ -8,15 +8,15 @@ interface SeverityBadgeProps {
 
 export const SeverityBadge: React.FC<SeverityBadgeProps> = ({ severity, className }) => {
     // 1=LOW, 2=MEDIUM, 3=HIGH, 4=CRITICAL
-    const map: Record<number, string> = { 1: 'LOW', 2: 'MEDIUM', 3: 'HIGH', 4: 'CRITICAL' };
+    const map: Record<string, string> = {
+        '1': 'LOW', 'LOW': 'LOW',
+        '2': 'MEDIUM', 'MEDIUM': 'MEDIUM',
+        '3': 'HIGH', 'HIGH': 'HIGH',
+        '4': 'CRITICAL', 'CRITICAL': 'CRITICAL'
+    };
 
-    // Normalize input (handle string "LOW" for legacy or number 1 for new)
-    let key = 'MEDIUM';
-    if (typeof severity === 'number') {
-        key = map[severity] || 'MEDIUM';
-    } else if (severity) {
-        key = severity;
-    }
+    const s = String(severity).toUpperCase();
+    const key = map[s] || 'MEDIUM';
 
     const config = {
         LOW: { emoji: '🟢', label: '轻微', color: 'bg-green-100 text-green-800 border-green-200' },

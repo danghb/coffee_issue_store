@@ -32,7 +32,7 @@ export default function SubmitIssuePage() {
     remarks: '', // Fix uncontrolled
     title: '',
     description: '',
-    severity: 2, // Default to MEDIUM (2)
+    severity: 'MEDIUM', // Default to MEDIUM
     occurredAt: '', // Fix uncontrolled
     frequency: '', // Fix uncontrolled
     environment: '', // Fix uncontrolled
@@ -112,7 +112,7 @@ export default function SubmitIssuePage() {
       // Redirect to the tracking page with success state
       navigate(`/track/${result.nanoId}`, { state: { submissionSuccess: true, nanoId: result.nanoId } });
 
-      // Reset form
+      // Reset form - 确保所有字段都被重置，避免受控组件警告
       setFormData({
         submitDate: new Date().toISOString().split('T')[0],
         reporterName: '',
@@ -122,8 +122,22 @@ export default function SubmitIssuePage() {
         serialNumber: '',
         purchaseDate: '',
         customerName: '',
+        firmware: '',
+        softwareVer: '',
+        remarks: '',
         title: '',
         description: '',
+        severity: 'MEDIUM',
+        occurredAt: '',
+        frequency: '',
+        environment: '',
+        location: '',
+        waterType: '',
+        voltage: '',
+        restarted: false,
+        cleaned: false,
+        replacedPart: '',
+        troubleshooting: '',
         attachmentIds: []
       });
       setCustomData({});
@@ -357,7 +371,7 @@ export default function SubmitIssuePage() {
                   <input
                     type="text"
                     name="firmware"
-                    value={formData.firmware}
+                    value={formData.firmware || ''}
                     onChange={handleChange}
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
                     placeholder="如: V1.2.3"
@@ -368,7 +382,7 @@ export default function SubmitIssuePage() {
                   <input
                     type="text"
                     name="softwareVer"
-                    value={formData.softwareVer}
+                    value={formData.softwareVer || ''}
                     onChange={handleChange}
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
                     placeholder="如: V2.0.1"

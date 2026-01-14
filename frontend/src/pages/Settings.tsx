@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { settingsService, type DeviceModel, type FormField } from '../services/api';
-import { Loader2, Plus, Trash2, Edit2, Check, X, Box, ListChecks, Power, PowerOff, ChevronRight, ArrowLeft, BarChart3, Settings2, ShieldAlert } from 'lucide-react';
+import { settingsService, userService, authService, type DeviceModel, type FormField, type User } from '../services/api';
+import { Loader2, Plus, Trash2, Edit2, Check, X, Box, ListChecks, Power, PowerOff, ChevronRight, ArrowLeft, BarChart3, Settings2, ShieldAlert, Users, Key } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function SettingsPage() {
-  const [currentView, setCurrentView] = useState<'root' | 'models' | 'categories' | 'fields' | 'performance'>('root');
+  const [currentView, setCurrentView] = useState<'root' | 'models' | 'categories' | 'fields' | 'performance' | 'users'>('root');
 
   const renderView = () => {
     switch (currentView) {
@@ -16,6 +16,8 @@ export default function SettingsPage() {
         return <FieldSettings onBack={() => setCurrentView('root')} />;
       case 'performance':
         return <PerformanceSettings onBack={() => setCurrentView('root')} />;
+      case 'users':
+        return <UserManagementSettings onBack={() => setCurrentView('root')} />;
       default:
         return <SettingsRoot onNavigate={setCurrentView} />;
     }
@@ -29,6 +31,9 @@ export default function SettingsPage() {
 }
 
 function SettingsRoot({ onNavigate }: { onNavigate: (view: any) => void }) {
+  const currentUser = authService.getCurrentUser();
+  const isAdmin = currentUser?.role === 'ADMIN';
+
   const menus = [
     {
       id: 'models',
@@ -51,13 +56,21 @@ function SettingsRoot({ onNavigate }: { onNavigate: (view: any) => void }) {
       icon: ListChecks,
       color: 'bg-purple-100 text-purple-600',
     },
-    {
+    // 仅ADMIN可见
+    ...(isAdmin ? [{
       id: 'performance',
       title: '绩效管理',
       desc: '设置SLA目标与考核指标',
       icon: BarChart3,
       color: 'bg-orange-100 text-orange-600',
-    },
+    }] : []),
+    ...(isAdmin ? [{
+      id: 'users',
+      title: '用户管理',
+      desc: '管理系统用户、角色和权限',
+      icon: Users,
+      color: 'bg-red-100 text-red-600',
+    }] : []),
   ];
 
   return (
@@ -720,4 +733,218 @@ function getTypeLabel(type: string) {
 // Icon helper
 function InfoIcon({ className }: { className?: string }) {
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="12" y2="16" /><line x1="12" x2="12.01" y1="8" y2="8" /></svg>;
+}
+
+// User Management Component
+function UserManagementSettings({ onBack }: { onBack: () => void }) {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<number | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await userService.getUsers();
+      setUsers(data);
+    } catch (err) {
+      console.error(err);
+      alert('加载用户列表失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (userId: number, newRole: string) => {
+    try {
+      await userService.updateUserRole(userId, newRole);
+      alert('角色更新成功');
+      loadUsers();
+    } catch (err: any) {
+      alert(err.response?.data?.error || '角色更新失败');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUserId || !newPassword) return;
+    if (newPassword.length < 6) {
+      alert('密码至少需要6个字符');
+      return;
+    }
+
+    try {
+      await userService.resetPassword(resetPasswordUserId, newPassword);
+      alert('密码重置成功');
+      setResetPasswordUserId(null);
+      setNewPassword('');
+    } catch (err: any) {
+      alert(err.response?.data?.error || '密码重置失败');
+    }
+  };
+
+  const handleDeleteUser = async (userId: number, username: string) => {
+    if (!window.confirm(`确定要删除用户 "${username}" 吗？此操作不可撤销。`)) return;
+
+    try {
+      await userService.deleteUser(userId);
+      alert('用户已删除');
+      loadUsers();
+    } catch (err: any) {
+      alert(err.response?.data?.error || '删除用户失败');
+    }
+  };
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'ADMIN': return 'bg-red-100 text-red-700 border-red-200';
+      case 'DEVELOPER': return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'SUPPORT': return 'bg-blue-100 text-blue-700 border-blue-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'ADMIN': return '管理员';
+      case 'DEVELOPER': return '开发者';
+      case 'SUPPORT': return '支持';
+      default: return role;
+    }
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-blue-500" /></div>;
+
+  return (
+    <div className="animate-in slide-in-from-right-4 fade-in duration-300">
+      <Header title="用户管理" onBack={onBack} />
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+          <p className="text-sm text-gray-500">管理系统用户账号、角色和权限</p>
+          <div className="mt-3 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+            <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">注意事项</p>
+              <p className="mt-1 text-amber-600">• 内置管理员账号 (yfdz) 不会显示在列表中</p>
+              <p className="text-amber-600">• 第一个注册的用户自动成为管理员</p>
+              <p className="text-amber-600">• 后续注册用户默认为支持角色，可由管理员修改</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户名</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">名称</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">创建时间</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500 text-sm">
+                    暂无用户数据
+                  </td>
+                </tr>
+              )}
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{user.name || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                      className={cn(
+                        "text-xs font-medium px-2.5 py-1.5 rounded-full border focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        getRoleBadgeColor(user.role)
+                      )}
+                    >
+                      <option value="ADMIN">管理员</option>
+                      <option value="DEVELOPER">开发者</option>
+                      <option value="SUPPORT">支持</option>
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(user.createdAt).toLocaleDateString('zh-CN')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <button
+                      onClick={() => setResetPasswordUserId(user.id)}
+                      className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                      title="重置密码"
+                    >
+                      <Key className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(user.id, user.username)}
+                      className="text-red-600 hover:text-red-900 inline-flex items-center"
+                      title="删除用户"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 重置密码对话框 */}
+      {resetPasswordUserId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">重置用户密码</h3>
+              <button onClick={() => { setResetPasswordUserId(null); setNewPassword(''); }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">新密码</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="至少6个字符"
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border"
+                autoFocus
+              />
+              <p className="mt-2 text-xs text-gray-500">重置后请立即告知用户新密码，建议用户首次登录后修改。</p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { setResetPasswordUserId(null); setNewPassword(''); }}
+                className="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleResetPassword}
+                disabled={!newPassword || newPassword.length < 6}
+                className="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                确认重置
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
