@@ -31,12 +31,13 @@ export const settingsService = {
   },
 
   async updateModel(id: number, data: { name?: string; isEnabled?: boolean }) {
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.isEnabled !== undefined) updateData.isEnabled = data.isEnabled;
+
     return prisma.deviceModel.update({
       where: { id },
-      data: {
-        name: data.name,
-        isEnabled: data.isEnabled
-      }
+      data: updateData
     });
   },
 

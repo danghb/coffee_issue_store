@@ -48,16 +48,21 @@ export const categoryController = {
             const { name } = request.body;
             const categoryId = Number(id);
 
-            if (!name) return reply.code(400).send({ error: 'Name is required' });
+            if (!name || !name.trim()) {
+                return reply.code(400).send({ error: 'Name is required' });
+            }
 
             const category = await prisma.category.update({
                 where: { id: categoryId },
-                data: { name }
+                data: { name: name.trim() }
             });
             return reply.send(category);
-        } catch (error) {
+        } catch (error: any) {
             request.log.error(error);
-            return reply.code(500).send({ error: 'Update failed' });
+            if (error.code === 'P2025') {
+                return reply.code(404).send({ error: 'Category not found' });
+            }
+            return reply.code(500).send({ error: 'Update failed', details: error.message });
         }
     },
 

@@ -1,0 +1,188 @@
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"status":"ok","message":"Product Issue Collector Backend is running"}
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:55:37 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 70…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 70
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"id":5,"username":"test_20260114105537","name":"测试用户","role":"SUPPORT","isBuiltin":false,"createdAt":"2026-01-14T02:55:40.075Z","updatedAt":"2026-01-14T02:55:40.075Z"}
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:55:44 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 176…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 176
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : [{"id":2,"name":"E60","isEnabled":true},{"id":1,"name":"M50","isEnabled":true},{"id":3,"name":"测试机型_更新","isEnabled":true}]
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:55:48 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 134…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 134
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : [{"id":2,"name":"E60","isEnabled":true},{"id":1,"name":"M50","isEnabled":true},{"id":3,"name":"测试机型_更新","isEnabled":true}]
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:55:50 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 134…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 134
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : [{"id":1,"name":"软件问题","createdAt":"2026-01-14T02:29:05.668Z"},{"id":2,"name":"测试分类_更新","createdAt":"2026-01-14T02:52:15.609Z"}]
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:55:56 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 148…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 148
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : [{"id":1,"label":"测试字段_20260114105154","type":"text","required":false,"order":0,"isEnabled":true,"createdAt":"2026-01-14T02:52:21.749Z","updatedAt":"2026-01-14T02:52:21.749Z"}]
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:56:02 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 184…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 184
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"targetSLA":5,"warningThreshold":1}
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:56:06 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 36…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 36
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"success":true}
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:56:08 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 16…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 16
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"items":[],"meta":{"total":0,"page":1,"limit":20,"totalPages":0}}
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:56:12 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 66…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 66
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"overview":{"total":4,"pending":4,"resolved":0,"today":4},"byModel":[{"name":"M50","value":3},{"name":"E60","value":1}],"byCustomer":[],"byCategory":[],"trend":[{"date":"2026-01-07","count":0},{"date…
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:56:14 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 387…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 387
+RelationLink      : {}
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : [{"id":5,"username":"test_20260114105537","name":"测试用户","role":"SUPPORT","createdAt":"2026-01-14T02:55:40.075Z","updatedAt":"2026-01-14T02:55:40.075Z"},{"id":4,"username":"test_20260114105154","name":…
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Date: Wed, 14 Jan 2026 02:56:16 GMT
+                    Connection: keep-alive
+                    Keep-Alive: timeout=72
+                    Content-Type: application/json; charset=utf-8
+                    Content-Length: 593…
+Headers           : {[Access-Control-Allow-Origin, System.String[]], [Date, System.String[]], [Connection, System.String[]], [Keep-Alive, System.String[]]…}
+Images            : {}
+InputFields       : {}
+Links             : {}
+RawContentLength  : 593
+RelationLink      : {}
+

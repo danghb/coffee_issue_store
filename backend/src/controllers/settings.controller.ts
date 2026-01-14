@@ -34,11 +34,12 @@ export const settingsController = {
   updateModel: async (request: FastifyRequest<{ Params: { id: string }, Body: { name?: string, isEnabled?: boolean } }>, reply: FastifyReply) => {
     try {
       const id = Number(request.params.id);
+      request.log.info({ id, body: request.body }, 'Updating model');
       const model = await settingsService.updateModel(id, request.body);
       return reply.send(model);
-    } catch (error) {
-      request.log.error(error);
-      return reply.code(500).send({ error: 'Internal Server Error' });
+    } catch (error: any) {
+      request.log.error({ error: error.message, stack: error.stack, body: request.body }, 'Model update failed');
+      return reply.code(500).send({ error: 'Internal Server Error', details: error.message });
     }
   },
 
