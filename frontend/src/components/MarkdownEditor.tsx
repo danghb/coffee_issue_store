@@ -274,7 +274,6 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                     border: none !important;
                     box-shadow: none !important;
                     background-color: transparent !important;
-                    height: 100% !important;
                 }
                 .markdown-editor-wrapper .w-md-editor-toolbar {
                     border-bottom: 1px solid #e5e7eb !important;
@@ -294,7 +293,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 value={value}
                 onChange={(val) => onChange(val || "")}
                 height={height}
-                preview="edit"
+                preview="live"
                 textareaProps={{
                     onPaste: handlePaste
                 }}

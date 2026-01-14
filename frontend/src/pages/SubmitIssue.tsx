@@ -21,10 +21,28 @@ export default function SubmitIssuePage() {
     // ... initial state
     submitDate: new Date().toISOString().split('T')[0],
     reporterName: '',
+    contact: '',
     modelId: undefined,
-    categoryId: undefined, // New
-    description: '', // Initialize description for RichTextEditor
-    // ...
+    categoryId: undefined,
+    serialNumber: '',
+    purchaseDate: '',
+    customerName: '',
+    firmware: '', // Fix uncontrolled
+    softwareVer: '', // Fix uncontrolled
+    remarks: '', // Fix uncontrolled
+    title: '',
+    description: '',
+    severity: 2, // Default to MEDIUM (2)
+    occurredAt: '', // Fix uncontrolled
+    frequency: '', // Fix uncontrolled
+    environment: '', // Fix uncontrolled
+    location: '', // Fix uncontrolled
+    waterType: '', // Fix uncontrolled
+    voltage: '', // Fix uncontrolled
+    restarted: false, // Fix uncontrolled checkbox
+    cleaned: false, // Fix uncontrolled checkbox
+    replacedPart: '', // Fix uncontrolled
+    troubleshooting: '', // Fix uncontrolled
     attachmentIds: []
   });
 
@@ -41,11 +59,11 @@ export default function SubmitIssuePage() {
       const [modelsData, fieldsData, categoriesData] = await Promise.all([
         issueService.getModels(),
         settingsService.getFields(),
-        settingsService.getCategories() // Fixed
+        settingsService.getCategories()
       ]);
       setModels(modelsData);
       setCustomFields(fieldsData);
-      setCategories(categoriesData); // New
+      setCategories(categoriesData);
     } catch (err) {
       console.error(err);
       setError('无法加载基础数据，请稍后重试');
@@ -76,7 +94,7 @@ export default function SubmitIssuePage() {
       const payload: CreateIssueData = {
         ...formData as CreateIssueData,
         modelId: Number(formData.modelId),
-        customData: JSON.stringify(customData)
+        customData: customData // Send as object, let backend handle stringify
       };
 
       const result = await issueService.createIssue(payload);
@@ -94,12 +112,16 @@ export default function SubmitIssuePage() {
       // Redirect to the tracking page with success state
       navigate(`/track/${result.nanoId}`, { state: { submissionSuccess: true, nanoId: result.nanoId } });
 
-      // Reset form (simplified)
+      // Reset form
       setFormData({
         submitDate: new Date().toISOString().split('T')[0],
         reporterName: '',
+        contact: '',
         modelId: undefined,
         categoryId: undefined,
+        serialNumber: '',
+        purchaseDate: '',
+        customerName: '',
         title: '',
         description: '',
         attachmentIds: []
@@ -342,7 +364,7 @@ export default function SubmitIssuePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">HMI版本的号</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">HMI版本号</label>
                   <input
                     type="text"
                     name="softwareVer"
@@ -419,7 +441,7 @@ export default function SubmitIssuePage() {
                   <MarkdownEditor
                     value={formData.description || ''}
                     onChange={(val) => setFormData(prev => ({ ...prev, description: val }))}
-                    height={500}
+                    height={240}
                   />
                   <p className="mt-1 text-xs text-gray-500">支持 Markdown 语法与 Mermaid 流程图</p>
                 </div>

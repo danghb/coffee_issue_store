@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma';
+import { settingsService } from './settings.service';
 import { IssueStatus } from '../utils/enums';
 import { addWorkingDays } from '../utils/workday';
 
@@ -167,8 +168,11 @@ export const issueService = {
         troubleshooting: data.troubleshooting,
 
         categoryId: data.categoryId ? Number(data.categoryId) : undefined, // Link Category
-        // Calculate Target Date: Default 5 working days from now (or submitDate)
-        targetDate: addWorkingDays(parseDate(data.submitDate) || new Date(), 5),
+        // Calculate Target Date: Dynamic based on SLA config (fetched inside create, or we can fetch before)
+        targetDate: addWorkingDays(parseDate(data.submitDate) || new Date(), await (async () => {
+          const days = await settingsService.getSystemConfig('SLA_DAYS', '5');
+          return parseInt(days, 10) || 5;
+        })()),
 
         status: IssueStatus.PENDING, // 默认状态
         attachments: data.attachmentIds && data.attachmentIds.length > 0 ? {

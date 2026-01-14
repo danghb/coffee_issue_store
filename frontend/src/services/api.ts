@@ -179,6 +179,16 @@ export const settingsService = {
   },
   deleteCategory: async (id: number) => {
     await api.delete(`/categories/${id}`);
+  },
+
+  // SLA Management
+  getSLAConfig: async () => {
+    const response = await api.get<{ targetSLA: number; warningThreshold: number }>('/settings/sla');
+    return response.data;
+  },
+  updateSLAConfig: async (data: { targetSLA: number; warningThreshold: number }) => {
+    const response = await api.put<{ success: boolean }>('/settings/sla', data);
+    return response.data;
   }
 };
 

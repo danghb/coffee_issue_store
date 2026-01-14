@@ -13,4 +13,8 @@ export async function settingsRoutes(fastify: FastifyInstance) {
   fastify.post('/fields', settingsController.createField);
   fastify.put('/fields/:id', settingsController.updateField);
   fastify.delete('/fields/:id', settingsController.deleteField);
+
+  // SLA
+  fastify.get('/sla', settingsController.getSLAConfig);
+  fastify.put('/sla', settingsController.updateSLAConfig);
 }

@@ -291,8 +291,10 @@ export default function IssueDetailPage() {
       return <div className="text-gray-500 text-sm text-center py-4">暂无评论</div>;
     }
 
-    // 只显示用户提交的评论（MESSAGE类型）
-    const userComments = issue.comments.filter(c => c.type === 'MESSAGE');
+    // 只显示用户提交的评论（MESSAGE类型），并按ID倒序排列（最新的在最上面）
+    const userComments = issue.comments
+      .filter(c => c.type === 'MESSAGE')
+      .sort((a, b) => b.id - a.id);
 
     if (userComments.length === 0) {
       return <div className="text-gray-500 text-sm text-center py-4">暂无评论</div>;

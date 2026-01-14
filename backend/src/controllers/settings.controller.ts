@@ -21,7 +21,7 @@ export const settingsController = {
         return reply.code(201).send(model);
       } catch (e: any) {
         if (e.message === 'Model already exists') {
-           return reply.code(409).send({ error: 'Model already exists' });
+          return reply.code(409).send({ error: 'Model already exists' });
         }
         throw e;
       }
@@ -99,6 +99,37 @@ export const settingsController = {
       const id = Number(request.params.id);
       await settingsService.deleteField(id);
       return reply.code(204).send();
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  },
+
+  // --- System Config (SLA) ---
+  getSLAConfig: async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // Default 5 days, 1 day warning
+      const targetSLA = await settingsService.getSystemConfig('SLA_DAYS', '5');
+      const warningThreshold = await settingsService.getSystemConfig('SLA_WARNING_DAYS', '1');
+
+      return reply.send({
+        targetSLA: Number(targetSLA),
+        warningThreshold: Number(warningThreshold)
+      });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({ error: 'Internal Server Error' });
+    }
+  },
+
+  updateSLAConfig: async (request: FastifyRequest<{ Body: { targetSLA: number, warningThreshold: number } }>, reply: FastifyReply) => {
+    try {
+      const { targetSLA, warningThreshold } = request.body;
+
+      await settingsService.setSystemConfig('SLA_DAYS', String(targetSLA));
+      await settingsService.setSystemConfig('SLA_WARNING_DAYS', String(warningThreshold));
+
+      return reply.send({ success: true });
     } catch (error) {
       request.log.error(error);
       return reply.code(500).send({ error: 'Internal Server Error' });
