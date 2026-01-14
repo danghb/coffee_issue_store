@@ -88,15 +88,6 @@ export default function UserManagementSettings({ onBack }: UserManagementSetting
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 bg-gray-50/50">
                     <p className="text-sm text-gray-500">管理系统用户账号、角色和权限</p>
-                    <div className="mt-3 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
-                        <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                        <div>
-                            <p className="font-medium">注意事项</p>
-                            <p className="mt-1 text-amber-600">• 内置管理员账号 (yfdz) 不会显示在列表中</p>
-                            <p className="text-amber-600">• 第一个注册的用户自动成为管理员</p>
-                            <p className="text-amber-600">• 后续注册用户默认为支持角色，可由管理员修改</p>
-                        </div>
-                    </div>
                 </div>
 
                 <div className="overflow-x-auto">

@@ -15,75 +15,95 @@ model DeviceModel {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String
-  name      String?
-  role      String   @default("ADMIN")
-  isBuiltin Boolean  @default(false)
-  issues    Issue[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int         @id @default(autoincrement())
+  username      String      @unique
+  password      String
+  name          String?
+  role          String      @default("ADMIN")
+  isBuiltin     Boolean     @default(false)
+  issues        Issue[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  assignedTasks IssueTask[] @relation("TaskAssignee")
+  createdTasks  IssueTask[] @relation("TaskCreator")
 }
 
 model Issue {
-  id            Int      @id @default(autoincrement())
-  nanoId        String   @unique @default("")
-  submitDate    DateTime @default(now())
-  reporterName  String
-  contact       String?
-  modelId       Int
-  model         DeviceModel @relation(fields: [modelId], references: [id])
-  serialNumber  String?
-  purchaseDate  DateTime?
-  customerName  String?
-  firmware      String?
-  softwareVer   String?
-  title         String
-  occurredAt    DateTime?
-  frequency     String?
-  phenomenon    String?
-  errorCode     String?
-  description   String
-  severity      Int      @default(2)
-  priority      String?  @default("P2")
-  categoryId    Int?
-  category      Category? @relation(fields: [categoryId], references: [id])
-  environment   String?
-  location      String?
-  waterType     String?
-  voltage       String?
-  usageFrequency String?
-  remarks       String?
-  restarted     Boolean?
-  cleaned       Boolean?
-  replacedPart  String?
+  id              Int          @id @default(autoincrement())
+  nanoId          String       @unique @default("")
+  submitDate      DateTime     @default(now())
+  reporterName    String
+  contact         String?
+  modelId         Int
+  model           DeviceModel  @relation(fields: [modelId], references: [id])
+  serialNumber    String?
+  purchaseDate    DateTime?
+  customerName    String?
+  firmware        String?
+  softwareVer     String?
+  title           String
+  occurredAt      DateTime?
+  frequency       String?
+  phenomenon      String?
+  errorCode       String?
+  description     String
+  severity        Int          @default(2)
+  priority        String?      @default("P2")
+  categoryId      Int?
+  category        Category?    @relation(fields: [categoryId], references: [id])
+  environment     String?
+  location        String?
+  waterType       String?
+  voltage         String?
+  usageFrequency  String?
+  remarks         String?
+  restarted       Boolean?
+  cleaned         Boolean?
+  replacedPart    String?
   troubleshooting String?
-  tags          String?
-  targetDate    DateTime?
-  status        String   @default("PENDING")
-  createdById   Int?
-  createdBy     User?    @relation(fields: [createdById], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  attachments   Attachment[]
-  comments      Comment[]
-  parentId      Int?
-  parent        Issue?   @relation("IssueGrouping", fields: [parentId], references: [id])
-  children      Issue[]  @relation("IssueGrouping")
-  customData    String?
+  tags            String?
+  targetDate      DateTime?
+  status          String       @default("PENDING")
+  createdById     Int?
+  createdBy       User?        @relation(fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  attachments     Attachment[]
+  comments        Comment[]
+  parentId        Int?
+  parent          Issue?       @relation("IssueGrouping", fields: [parentId], references: [id])
+  children        Issue[]      @relation("IssueGrouping")
+  customData      String?
+  tasks           IssueTask[]
+}
+
+model IssueTask {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String?
+  status       String   @default("TODO")
+  result       String?
+  issueId      Int
+  issue        Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  assigneeName String?
+  assigneeId   Int?
+  assignee     User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdById  Int
+  createdBy    User     @relation("TaskCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model FormField {
-  id          Int      @id @default(autoincrement())
-  label       String
-  type        String
-  options     String?
-  required    Boolean  @default(false)
-  order       Int      @default(0)
-  isEnabled   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  label     String
+  type      String
+  options   String?
+  required  Boolean  @default(false)
+  order     Int      @default(0)
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Attachment {
@@ -105,17 +125,17 @@ model Attachment {
 }
 
 model Comment {
-  id         Int      @id @default(autoincrement())
-  type       String   @default("MESSAGE")
-  content    String?
-  isInternal Boolean  @default(true)
-  oldStatus  String?
-  newStatus  String?
-  author     String
-  authorType String   @default("USER")
-  createdAt  DateTime @default(now())
-  issueId    Int
-  issue      Issue    @relation(fields: [issueId], references: [id])
+  id          Int          @id @default(autoincrement())
+  type        String       @default("MESSAGE")
+  content     String?
+  isInternal  Boolean      @default(true)
+  oldStatus   String?
+  newStatus   String?
+  author      String
+  authorType  String       @default("USER")
+  createdAt   DateTime     @default(now())
+  issueId     Int
+  issue       Issue        @relation(fields: [issueId], references: [id])
   attachments Attachment[]
 }
 

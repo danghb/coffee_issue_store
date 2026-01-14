@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import IssueSelector from '../components/IssueSelector';
 import CommentForm from '../components/CommentForm';
 import { AttachmentItem } from '../components/AttachmentItem';
+import IssueTaskList from '../components/IssueTaskList'; // New Component
 
 // 静态空函数，避免重新渲染
 const noOpChange = () => { };
@@ -804,6 +805,13 @@ export default function IssueDetailPage() {
             </div>
           </section>
 
+          {/* Task List Section */}
+          {(isInternalViewer || user) && (
+            <div className="mb-6">
+              <IssueTaskList issueId={issue.id} canEdit={!!user} />
+            </div>
+          )}
+
 
 
 
@@ -1091,14 +1099,7 @@ export default function IssueDetailPage() {
                     displayClassName="text-sm text-gray-900"
                   />
                 </div>
-                <div className="col-span-2">
-                  <span className="text-xs text-gray-400 block mb-1">使用频率</span>
-                  <EditableField
-                    value={issue.usageFrequency || '-'}
-                    onSave={(val) => handleFieldUpdate('usageFrequency', val)}
-                    displayClassName="text-sm text-gray-900"
-                  />
-                </div>
+
               </div>
             </div>
           </section>

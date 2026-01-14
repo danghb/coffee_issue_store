@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { issueController } from '../controllers/issue.controller';
+import { taskController } from '../controllers/task.controller';
 import { authenticate, requireAdmin, requireDeveloper } from '../middleware/auth.middleware';
 import jwt from 'jsonwebtoken';
 
@@ -62,4 +63,17 @@ export async function issueRoutes(server: FastifyInstance) {
 
   // Update comment
   server.put('/:id/comments/:commentId', { preHandler: [authenticate] }, issueController.updateComment as any);
+
+  // --- Task Routes ---
+  // Create Task
+  server.post('/:issueId/tasks', { preHandler: [authenticate] }, taskController.create as any);
+
+  // Get Tasks
+  server.get('/:issueId/tasks', { preHandler: [authenticate] }, taskController.getAll as any);
+
+  // Update Task (Using issueId in path just for nesting consistency, controller uses taskId)
+  server.put('/:issueId/tasks/:taskId', { preHandler: [authenticate] }, taskController.update as any);
+
+  // Delete Task
+  server.delete('/:issueId/tasks/:taskId', { preHandler: [authenticate] }, taskController.delete as any);
 }

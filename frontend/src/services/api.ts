@@ -400,3 +400,47 @@ export const issueService = {
     await api.delete(`/issues/${id}`);
   }
 };
+
+// --- Task API ---
+export interface IssueTask {
+  id: number;
+  title: string;
+  description?: string; // New
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CANCELED';
+  result?: string;
+  issueId: number;
+  assignee?: { id: number; name?: string; username: string };
+  assigneeName?: string; // New
+  assigneeId?: number;
+  createdBy?: { id: number; name?: string; username: string };
+  createdById: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const taskService = {
+  // Get tasks for an issue
+  getTasks: async (issueId: number) => {
+    const { data } = await api.get<IssueTask[]>(`/issues/${issueId}/tasks`);
+    return data;
+  },
+
+  // Create a task
+  createTask: async (issueId: number, taskData: { title: string; assigneeId?: number }) => {
+    const { data } = await api.post<IssueTask>(`/issues/${issueId}/tasks`, taskData);
+    return data;
+  },
+
+  // Update a task
+  updateTask: async (issueId: number, taskId: number, updates: Partial<IssueTask>) => {
+    // Note: URL structure uses issueId for consistency, but backend mostly depends on taskId
+    const { data } = await api.put<IssueTask>(`/issues/${issueId}/tasks/${taskId}`, updates);
+    return data;
+  },
+
+  // Delete a task
+  deleteTask: async (issueId: number, taskId: number) => {
+    const { data } = await api.delete(`/issues/${issueId}/tasks/${taskId}`);
+    return data;
+  }
+};

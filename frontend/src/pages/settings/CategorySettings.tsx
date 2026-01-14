@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { settingsService } from '../../services/api';
-import { Loader2, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit2, Check, X, Tag } from 'lucide-react';
 import Header from './Header';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { EmptyState } from '../../components/ui/EmptyState';
 
 interface CategorySettingsProps {
     onBack: () => void;
@@ -67,22 +70,20 @@ export default function CategorySettings({ onBack }: CategorySettingsProps) {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-4 justify-between items-center">
                     <p className="text-sm text-gray-500">管理问题的原因/类型分类列表</p>
-                    <div className="flex w-full sm:w-auto gap-2">
-                        <input
-                            type="text"
+                    <div className="flex w-full sm:w-auto gap-2 items-center">
+                        <Input
                             value={newName}
                             onChange={(e) => setNewName(e.target.value)}
                             placeholder="输入新分类名称..."
-                            className="flex-1 min-w-[200px] block rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border"
+                            className="min-w-[250px]"
                         />
-                        <button
+                        <Button
                             onClick={handleAdd}
                             disabled={!newName.trim()}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+                            icon={<Plus className="w-4 h-4" />}
                         >
-                            <Plus className="w-4 h-4 mr-2" />
                             添加
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
@@ -90,19 +91,25 @@ export default function CategorySettings({ onBack }: CategorySettingsProps) {
                     {categories.map((cat) => (
                         <li key={cat.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                             {editingId === cat.id ? (
-                                <div className="flex items-center gap-2 flex-1">
-                                    <input
-                                        type="text"
+                                <div className="flex items-center gap-2 flex-1 max-w-md">
+                                    <Input
                                         value={editName}
                                         onChange={(e) => setEditName(e.target.value)}
-                                        className="block w-full max-w-xs rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border"
                                         autoFocus
+                                        className="h-8"
                                     />
-                                    <button onClick={() => handleUpdate(cat.id)} className="p-2 text-green-600 hover:bg-green-50 rounded-md"><Check className="w-4 h-4" /></button>
-                                    <button onClick={() => setEditingId(null)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-md"><X className="w-4 h-4" /></button>
+                                    <Button size="sm" variant="ghost" onClick={() => handleUpdate(cat.id)} className="text-green-600 hover:text-green-700 hover:bg-green-50">
+                                        <Check className="w-4 h-4" />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="text-gray-500">
+                                        <X className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                        <Tag className="w-4 h-4" />
+                                    </div>
                                     <span className="text-sm font-medium text-gray-900">
                                         {cat.name}
                                     </span>
@@ -112,26 +119,35 @@ export default function CategorySettings({ onBack }: CategorySettingsProps) {
                             <div className="flex items-center gap-1 sm:ml-4">
                                 {editingId !== cat.id && (
                                     <>
-                                        <button
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
                                             onClick={() => { setEditingId(cat.id); setEditName(cat.name); }}
-                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                            className="text-gray-400 hover:text-blue-600"
                                         >
                                             <Edit2 className="w-4 h-4" />
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
                                             onClick={() => handleDelete(cat.id)}
-                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                            className="text-gray-400 hover:text-red-600 hover:bg-red-50"
                                         >
                                             <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        </Button>
                                     </>
                                 )}
                             </div>
                         </li>
                     ))}
                     {categories.length === 0 && (
-                        <li className="p-12 text-center text-gray-500 text-sm">
-                            暂无分类数据，请在上方添加
+                        <li className="p-4">
+                            <EmptyState
+                                icon={Tag}
+                                title="暂无分类数据"
+                                description="请在上方添加新的问题分类"
+                                className="border-0 bg-transparent"
+                            />
                         </li>
                     )}
                 </ul>
@@ -139,3 +155,4 @@ export default function CategorySettings({ onBack }: CategorySettingsProps) {
         </div>
     );
 }
+

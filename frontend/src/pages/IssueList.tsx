@@ -6,9 +6,11 @@ import { KanbanBoard } from '../components/KanbanBoard';
 import { DateRangeFilter } from '../components/DateRangeFilter';
 import { SeverityBadge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
 import { MultiSelect } from '../components/ui/MultiSelect';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { EmptyState } from '../components/ui/EmptyState';
 import MDEditor from "@uiw/react-md-editor";
 import { Loader2, Plus, Search, FileText, AlertCircle, Download, LayoutDashboard, Columns } from 'lucide-react';
-
 import { cn } from '../lib/utils';
 
 export default function IssueListPage() {
@@ -18,7 +20,7 @@ export default function IssueListPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list'); // New
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
   const [sortField, setSortField] = useState<'createdAt' | 'priority' | 'severity'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -29,8 +31,7 @@ export default function IssueListPage() {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [modelFilter, setModelFilter] = useState<number[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
-  // Date state initialized with "near month" logic (calculated in filter component or passed as default)
-  // We'll calculate default month range here for initial state
+
   const formatDateInput = (date: Date) => date.toISOString().split('T')[0];
   const getDefaultRange = () => {
     const end = new Date();
@@ -50,7 +51,6 @@ export default function IssueListPage() {
     loadModels();
   }, []);
 
-  // Clear status filter when switching to Kanban to avoid empty columns
   useEffect(() => {
     if (viewMode === 'kanban') {
       setStatusFilter([]);
@@ -105,15 +105,12 @@ export default function IssueListPage() {
 
   const handleStatusChange = async (issueId: number, newStatus: string) => {
     try {
-      // Optimistic update
       setIssues(prev => prev.map(issue =>
         issue.id === issueId ? { ...issue, status: newStatus } : issue
       ));
-
       await issueService.updateStatus(issueId, newStatus);
     } catch (error) {
       console.error('Failed to update status', error);
-      // Revert or show toast (optional: fetch issues again)
       fetchIssues();
     }
   };
@@ -127,7 +124,7 @@ export default function IssueListPage() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">问题列表</h1>
           <p className="text-sm text-gray-500 mt-1">管理和追踪所有上报的产品问题</p>
         </div>
-        <div className="flex space-x-3 w-full sm:w-auto">
+        <div className="flex space-x-3 w-full sm:w-auto items-center">
           {/* 视图切换 */}
           <div className="flex bg-gray-100 p-1 rounded-lg">
             <button
@@ -161,7 +158,7 @@ export default function IssueListPage() {
                 setSortField(field as 'createdAt' | 'priority' | 'severity');
                 setSortOrder(order as 'asc' | 'desc');
               }}
-              className="pl-3 pr-8 py-2 text-sm border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm appearance-none cursor-pointer"
+              className="pl-3 pr-8 py-2 h-9 text-sm border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm appearance-none cursor-pointer"
               style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em` }}
             >
               <option value="createdAt-desc">最新提交</option>
@@ -170,19 +167,12 @@ export default function IssueListPage() {
             </select>
           </div>
 
-          <button
-            onClick={handleExport}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-          >
-            <Download className="w-4 h-4 mr-2" />
+          <Button variant="secondary" onClick={handleExport} icon={<Download className="w-4 h-4" />}>
             导出
-          </button>
-          <Link
-            to="/submit"
-            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-all hover:shadow-md"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            提交问题
+          </Button>
+
+          <Link to="/submit">
+            <Button icon={<Plus className="w-4 h-4" />}>提交问题</Button>
           </Link>
         </div>
       </div>
@@ -193,19 +183,14 @@ export default function IssueListPage() {
         viewMode === 'kanban' ? "mb-0 rounded-b-none border-b-0 shadow-none z-30" : ""
       )}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="relative sm:col-span-2">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+          <div className="sm:col-span-2">
+            <Input
               placeholder="搜索机型、客户、SN、描述..."
+              icon={<Search className="h-4 w-4" />}
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
             />
           </div>
-
 
           <div>
             <DateRangeFilter
@@ -259,11 +244,13 @@ export default function IssueListPage() {
             <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
           </div>
         ) : issues.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900">暂无问题反馈</h3>
-            <p className="mt-1 text-gray-500">点击右上角提交第一个问题</p>
-          </div>
+          <EmptyState
+            title="暂无问题反馈"
+            description="数据库中没有符合条件的问题记录"
+            actionLabel="提交第一个问题"
+            onAction={() => navigate('/submit')}
+            className="border-none bg-white"
+          />
         ) : viewMode === 'kanban' ? (
           <div className="bg-gray-50 h-[calc(100vh-14rem)] overflow-hidden rounded-b-xl border border-t-0 border-gray-100">
             <div className="h-full p-4 overflow-x-auto">
@@ -275,24 +262,12 @@ export default function IssueListPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ID
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    状态
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    标题 / 描述
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    机型 / 客户
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    上报人
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    提交时间
-                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题 / 描述</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">机型 / 客户</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">上报人</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">提交时间</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -302,9 +277,7 @@ export default function IssueListPage() {
                     onClick={() => navigate(`/issues/${issue.id}`)}
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                      #{issue.id}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">#{issue.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         <StatusBadge status={issue.status} />
@@ -321,11 +294,7 @@ export default function IssueListPage() {
                         <div data-color-mode="light">
                           <MDEditor.Markdown
                             source={issue.description || ''}
-                            style={{
-                              backgroundColor: 'transparent',
-                              color: 'inherit',
-                              fontSize: '0.875rem'
-                            }}
+                            style={{ backgroundColor: 'transparent', color: 'inherit', fontSize: '0.875rem' }}
                           />
                         </div>
                       </div>
@@ -351,12 +320,8 @@ export default function IssueListPage() {
                       <div className="text-sm text-gray-900">{issue.model?.name || '-'}</div>
                       <div className="text-xs text-gray-500">{issue.customerName || '-'}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {issue.reporterName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(issue.createdAt)}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.reporterName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(issue.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -364,24 +329,8 @@ export default function IssueListPage() {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Pagination - Optimized with Button component */}
         <div className="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              上一页
-            </button>
-            <button
-              onClick={() => setPage(Math.min(totalPages, page + 1))}
-              disabled={page === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              下一页
-            </button>
-          </div>
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-gray-700">
@@ -390,22 +339,24 @@ export default function IssueListPage() {
             </div>
             <div>
               <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  className="rounded-r-none border-r-0"
                 >
-                  <span className="sr-only">Previous</span>
                   Previous
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setPage(Math.min(totalPages, page + 1))}
                   disabled={page === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                  className="rounded-l-none"
                 >
-                  <span className="sr-only">Next</span>
                   Next
-                </button>
+                </Button>
               </nav>
             </div>
           </div>
