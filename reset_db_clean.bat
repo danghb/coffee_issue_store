@@ -9,7 +9,13 @@ echo WARNING: This will DELETE ALL DATA in the database!
 echo Press Ctrl+C to cancel or any key to continue...
 pause > nul
 
-cd /d "%~dp0backend"
+cd /d "%~dp0"
+
+echo.
+echo [0/2] Stopping Backend Service (Port 3000)...
+powershell -ExecutionPolicy Bypass -File "kill_3000.ps1"
+
+cd backend
 
 echo.
 echo [1/2] Resetting Database (Force)...

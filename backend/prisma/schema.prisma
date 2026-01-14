@@ -1,9 +1,10 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -46,7 +47,7 @@ model Issue {
   frequency       String?
   phenomenon      String?
   errorCode       String?
-  description     String
+  description     String       @db.Text
   severity        Int          @default(2)
   priority        String?      @default("P2")
   categoryId      Int?
@@ -56,11 +57,11 @@ model Issue {
   waterType       String?
   voltage         String?
   usageFrequency  String?
-  remarks         String?
+  remarks         String?      @db.Text
   restarted       Boolean?
   cleaned         Boolean?
-  replacedPart    String?
-  troubleshooting String?
+  replacedPart    String?      @db.Text
+  troubleshooting String?      @db.Text
   tags            String?
   targetDate      DateTime?
   status          String       @default("PENDING")
@@ -73,16 +74,16 @@ model Issue {
   parentId        Int?
   parent          Issue?       @relation("IssueGrouping", fields: [parentId], references: [id])
   children        Issue[]      @relation("IssueGrouping")
-  customData      String?
+  customData      String?      @db.Text
   tasks           IssueTask[]
 }
 
 model IssueTask {
   id           Int      @id @default(autoincrement())
   title        String
-  description  String?
+  description  String?  @db.Text
   status       String   @default("TODO")
-  result       String?
+  result       String?  @db.Text
   issueId      Int
   issue        Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
   assigneeName String?
@@ -127,7 +128,7 @@ model Attachment {
 model Comment {
   id          Int          @id @default(autoincrement())
   type        String       @default("MESSAGE")
-  content     String?
+  content     String?      @db.Text
   isInternal  Boolean      @default(true)
   oldStatus   String?
   newStatus   String?
