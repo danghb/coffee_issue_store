@@ -4,7 +4,8 @@ WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ .
-RUN npm run build
+# Clean TypeScript build info and rebuild
+RUN rm -rf node_modules/.tmp && npx tsc -b --force && npm run build
 
 # Production Stage
 FROM docker.m.daocloud.io/nginx:alpine AS production-stage
