@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/api';
-import { Loader2, UserPlus, User } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 
 export default function RegisterPage() {
     const [username, setUsername] = useState('');

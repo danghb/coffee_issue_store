@@ -6,11 +6,11 @@ import { KanbanBoard } from '../components/KanbanBoard';
 import { DateRangeFilter } from '../components/DateRangeFilter';
 import { SeverityBadge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
 import { MultiSelect } from '../components/ui/MultiSelect';
-import { Button } from '../components/ui/Button';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/Input';
 import { EmptyState } from '../components/ui/EmptyState';
 import MDEditor from "@uiw/react-md-editor";
-import { Loader2, Plus, Search, FileText, AlertCircle, Download, LayoutDashboard, Columns } from 'lucide-react';
+import { Loader2, Plus, Search, AlertCircle, Download, LayoutDashboard, Columns } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function IssueListPage() {

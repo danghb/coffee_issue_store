@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { issueService, authService, type Issue } from '../services/api';
 import { Loader2, ArrowLeft, CheckCircle, AlertCircle, X, Download, ImageIcon, FileText, Video, Trash2, Save, RefreshCw, ShieldAlert, Calendar, User, Wrench, Pencil, Link2, MessageSquare, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { FileUpload } from '../components/Upload';
+// import { FileUpload } from '../components/Upload';
 import MarkdownEditor from '../components/MarkdownEditor';
 import { EditableField } from '../components/EditableField';
 import { EditableTags } from '../components/EditableTags';
@@ -142,6 +142,7 @@ export default function IssueDetailPage() {
 
 
   // Resolution Dialog handlers
+  /*
   const handleStatusChange = async (newStatus: string) => {
     if (!issue) return;
 
@@ -163,6 +164,7 @@ export default function IssueDetailPage() {
       alert('状态更新失败');
     }
   };
+  */
 
   const handleResolveConfirm = async (data: { categoryId: number; comment?: string }) => {
     if (!issue) return;
