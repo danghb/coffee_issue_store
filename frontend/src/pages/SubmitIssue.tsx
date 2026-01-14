@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { issueService, settingsService, type DeviceModel, type CreateIssueData, type FormField, type Category } from '../services/api';
-import { AlertCircle, Info, FileImage, Settings, Wrench, ClipboardList, Loader2 } from 'lucide-react';
+import { AlertCircle, Info, FileImage, Settings, Wrench, ClipboardList } from 'lucide-react';
 import { FileUpload } from '../components/Upload';
 import MarkdownEditor from '../components/MarkdownEditor';
 import { cn } from '../lib/utils';
@@ -12,7 +12,7 @@ import { Textarea } from '../components/ui/Textarea';
 
 export default function SubmitIssuePage() {
   const [models, setModels] = useState<DeviceModel[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  // const [categories, setCategories] = useState<Category[]>([]); // Unused
   const [customFields, setCustomFields] = useState<FormField[]>([]);
   // const [loading, setLoading] = useState(false);  // Unused
   const [submitting, setSubmitting] = useState(false);
@@ -59,14 +59,14 @@ export default function SubmitIssuePage() {
   const loadData = async () => {
     try {
       // setLoading(true);
-      const [modelsData, fieldsData, categoriesData] = await Promise.all([
+      const [modelsData, fieldsData] = await Promise.all([
         issueService.getModels(),
         settingsService.getFields(),
-        settingsService.getCategories()
+        // settingsService.getCategories()
       ]);
       setModels(modelsData);
       setCustomFields(fieldsData);
-      setCategories(categoriesData);
+      // setCategories(categoriesData);
     } catch (err) {
       console.error(err);
       setError('无法加载基础数据，请稍后重试');
