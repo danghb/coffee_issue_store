@@ -8,30 +8,16 @@ services:
     container_name: issue-collector-backend
     restart: always
     environment:
-      # Connect to the mysql service container
-      - DATABASE_URL=mysql://root:root@mysql:3306/issue_collector
+      - DATABASE_URL=file:/app/data/dev.db
       - PORT=3000
     volumes:
-      # Data persistance for Uploads
       - ./data/uploads:/app/uploads
-      # Data persistance for Logs
       - ./data/logs:/app/logs
+      # Map the local data/sqlite directory to /app/data in the container
+      # This is where dev.db will be stored
+      - ./data/sqlite:/app/data
     ports:
       - "3000:3000"
-    depends_on:
-      - mysql
-
-  mysql:
-    image: mysql:8.0
-    container_name: issue-collector-mysql
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: issue_collector
-    volumes:
-      - ./data/mysql:/var/lib/mysql
-    ports:
-      - "3306:3306" # Expose for local development
 
   nginx:
     build:

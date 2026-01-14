@@ -321,7 +321,7 @@ export default function IssueTaskList({ issueId, canEdit }: IssueTaskListProps) 
                                                         className={cn(
                                                             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
                                                             isActive
-                                                                ? cn(config.bg, config.text, config.border, "ring-1 ring-offset-1 ring-blue-500/30")
+                                                                ? cn(config.bg, config.color, config.border, "ring-1 ring-offset-1 ring-blue-500/30")
                                                                 : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                                                         )}
                                                     >
@@ -366,11 +366,12 @@ export default function IssueTaskList({ issueId, canEdit }: IssueTaskListProps) 
                                 </label>
                                 <div className="min-h-[120px]">
                                     {canEdit ? (
-                                        <MarkdownEditor
-                                            value={editForm.description}
-                                            onChange={(val) => setEditForm(prev => ({ ...prev, description: val || '' }))}
-                                            className="min-h-[120px] shadow-sm border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20"
-                                        />
+                                        <div className="min-h-[120px] shadow-sm border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20 overflow-hidden">
+                                            <MarkdownEditor
+                                                value={editForm.description}
+                                                onChange={(val) => setEditForm(prev => ({ ...prev, description: val || '' }))}
+                                            />
+                                        </div>
                                     ) : (
                                         <div className="prose prose-sm max-w-none bg-gray-50 p-4 rounded-lg border border-gray-100/50 text-gray-600">
                                             {editForm.description || <span className="text-gray-400 italic">无详细描述</span>}

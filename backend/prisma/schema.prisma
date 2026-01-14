@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -47,7 +47,7 @@ model Issue {
   frequency       String?
   phenomenon      String?
   errorCode       String?
-  description     String       @db.Text
+  description     String
   severity        Int          @default(2)
   priority        String?      @default("P2")
   categoryId      Int?
@@ -57,11 +57,11 @@ model Issue {
   waterType       String?
   voltage         String?
   usageFrequency  String?
-  remarks         String?      @db.Text
+  remarks         String?
   restarted       Boolean?
   cleaned         Boolean?
-  replacedPart    String?      @db.Text
-  troubleshooting String?      @db.Text
+  replacedPart    String?
+  troubleshooting String?
   tags            String?
   targetDate      DateTime?
   status          String       @default("PENDING")
@@ -74,16 +74,16 @@ model Issue {
   parentId        Int?
   parent          Issue?       @relation("IssueGrouping", fields: [parentId], references: [id])
   children        Issue[]      @relation("IssueGrouping")
-  customData      String?      @db.Text
+  customData      String?
   tasks           IssueTask[]
 }
 
 model IssueTask {
   id           Int      @id @default(autoincrement())
   title        String
-  description  String?  @db.Text
+  description  String?
   status       String   @default("TODO")
-  result       String?  @db.Text
+  result       String?
   issueId      Int
   issue        Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
   assigneeName String?
@@ -128,7 +128,7 @@ model Attachment {
 model Comment {
   id          Int          @id @default(autoincrement())
   type        String       @default("MESSAGE")
-  content     String?      @db.Text
+  content     String?
   isInternal  Boolean      @default(true)
   oldStatus   String?
   newStatus   String?

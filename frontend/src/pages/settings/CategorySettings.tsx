@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { settingsService } from '../../services/api';
 import { Loader2, Plus, Trash2, Edit2, Check, X, Tag } from 'lucide-react';
 import Header from './Header';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
 

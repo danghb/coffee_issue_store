@@ -165,11 +165,11 @@ function IssueCard({ issue, isOverlay }: { issue: Issue, isOverlay?: boolean }) 
                 {issue.severity && (
                     <span className={cn(
                         "text-[10px] px-1.5 py-0.5 rounded",
-                        issue.severity === 'CRITICAL' ? "bg-red-100 text-red-700" :
-                            issue.severity === 'HIGH' ? "bg-orange-100 text-orange-700" :
+                        Number(issue.severity) >= 4 ? "bg-red-100 text-red-700" :
+                            Number(issue.severity) >= 3 ? "bg-orange-100 text-orange-700" :
                                 "bg-gray-100 text-gray-600"
                     )}>
-                        {issue.severity}
+                        {Number(issue.severity) >= 4 ? 'High' : Number(issue.severity) >= 3 ? 'Medium' : 'Low'}
                     </span>
                 )}
             </div>

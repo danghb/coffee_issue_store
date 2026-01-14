@@ -16,10 +16,10 @@ RUN npx prisma generate
 # Expose port
 EXPOSE 3000
 
-# Start command (using ts-node for simplicity as per current dev setup, 
-# or build and run node dist/app.js for better performance)
-# For this setup, we stick to what works in dev unless user requested otherwise, 
-# but for Docker production it's better to verify if build works.
-# Given the user wants "quick start", let's try to run via ts-node but 
-# ensuring we have a robust start. 
+# Copy and set entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+
 CMD ["npm", "run", "dev"]

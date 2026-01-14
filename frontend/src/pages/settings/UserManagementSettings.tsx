@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { userService, type User } from '../../services/api';
-import { Loader2, ShieldAlert, Key, Trash2, X } from 'lucide-react';
+import { Loader2, Key, Trash2, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import Header from './Header';
 

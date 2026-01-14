@@ -54,15 +54,18 @@ docker-compose restart    # 重启
 
 ## 🛠️ 本地开发 (源码部署)
 
-> **注意**: 由于切换到了 MySQL，本地源码运行需要您本地安装 MySQL 8.0 或者直接连接 Docker 中的 MySQL (`localhost:3306`)。
+## 🛠️ Configuration
 
-如果您需要修改代码或进行二次开发，请按以下步骤操作。
+### Database (SQLite)
+The project uses SQLite by default.
+- **Development**: The database file is stored in `backend/dev.db` (configured via `.env`).
+- **Docker**: The database is persisted in `./data/sqlite/dev.db` on the host machine.
+  - The container automatically manages schema pushing on startup.
 
-### 0. 准备数据库 (推荐)
-启动 Docker 中的 MySQL 供本地开发使用：
-```bash
-docker-compose up -d mysql
-```
+### Logs
+The application logs are stored in:
+- Local: `backend/logs/app.log`
+- Docker: `./data/logs/app.log`
 
 ### 1. 快速初始化
 ```powershell
