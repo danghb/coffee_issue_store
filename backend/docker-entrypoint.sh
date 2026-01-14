@@ -7,6 +7,10 @@ echo "Starting backend..."
 # Ensure the data directory exists
 mkdir -p /app/data
 
+# Generate Prisma client in the container runtime environment
+echo "Generating Prisma client..."
+npx prisma generate
+
 # Run Prisma DB Push to sync schema with SQLite database
 echo "Pushing database schema..."
 npx prisma db push
