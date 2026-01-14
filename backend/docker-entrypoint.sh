@@ -15,9 +15,9 @@ npx prisma generate
 echo "Pushing database schema..."
 npx prisma db push
 
-# Initial seed if needed (optional, can be commented out if you only want to seed manually)
-# echo "Seeding database..."
-# npx prisma db seed
+# Initial seed - create default admin and basic data
+echo "Seeding database..."
+npx prisma db seed
 
 # Start the application
 echo "Starting Node.js application..."
