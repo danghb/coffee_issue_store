@@ -9,6 +9,9 @@ MIRRORS=(
     "docker.udayun.com"
     "docker.rainbond.cc"
     "dockerhub.jobcher.com"
+    "docker.mirrors.sjtug.sjtu.edu.cn"
+    "docker.mirrors.ustc.edu.cn"
+    "docker.nju.edu.cn"
 )
 
 echo "🚀 Starting Docker mirror speed test..."

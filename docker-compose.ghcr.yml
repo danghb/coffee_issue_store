@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    build: 
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/danghb/coffee_issue_store/backend:latest
     container_name: issue-collector-backend
     restart: always
     environment:
@@ -14,15 +12,12 @@ services:
       - ./data/uploads:/app/uploads
       - ./data/logs:/app/logs
       # Map the local data/sqlite directory to /app/data in the container
-      # This is where dev.db will be stored
       - ./data/sqlite:/app/data
     ports:
       - "3000:3000"
 
   nginx:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.nginx
+    image: ghcr.io/danghb/coffee_issue_store/nginx:latest
     container_name: issue-collector-nginx
     restart: always
     ports:
