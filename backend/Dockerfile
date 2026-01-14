@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine
+FROM docker.m.daocloud.io/node:20-alpine
 
 WORKDIR /app
 
