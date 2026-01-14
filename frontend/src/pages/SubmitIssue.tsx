@@ -5,7 +5,7 @@ import { AlertCircle, Info, FileImage, Settings, Wrench, ClipboardList, Loader2 
 import { FileUpload } from '../components/Upload';
 import MarkdownEditor from '../components/MarkdownEditor';
 import { cn } from '../lib/utils';
-import { Button } from '../components/ui/Button';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Textarea } from '../components/ui/Textarea';
@@ -14,10 +14,10 @@ export default function SubmitIssuePage() {
   const [models, setModels] = useState<DeviceModel[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [customFields, setCustomFields] = useState<FormField[]>([]);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);  // Unused
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState('basic');
+  // const [activeSection, setActiveSection] = useState('basic'); // Unused
   const navigate = useNavigate();
 
   // 表单状态
@@ -58,7 +58,7 @@ export default function SubmitIssuePage() {
 
   const loadData = async () => {
     try {
-      setLoading(true);
+      // setLoading(true);
       const [modelsData, fieldsData, categoriesData] = await Promise.all([
         issueService.getModels(),
         settingsService.getFields(),
@@ -71,7 +71,7 @@ export default function SubmitIssuePage() {
       console.error(err);
       setError('无法加载基础数据，请稍后重试');
     } finally {
-      setLoading(false);
+      // setLoading(false);
     }
   };
 
@@ -144,7 +144,7 @@ export default function SubmitIssuePage() {
         attachmentIds: []
       });
       setCustomData({});
-      setActiveSection('basic');
+      // setActiveSection('basic');
     } catch (err) {
       console.error(err);
       setError('提交失败，请检查网络或联系管理员');
